@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Incharge Sign Up - Smart Bus Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚍 Bus Incharge Registration</h1>
+            <p>Create your account to manage bus attendance</p>
+        </div>
+
+        <!-- Signup Form -->
+        <div class="form-container">
+            <div class="form-box">
+                <div class="form-title">
+                    <h2>Create Account</h2>
+                    <p>Fill in your details to register as a Bus Incharge</p>
+                </div>
+
+                <form action="{{ url_for('incharge_signup') }}" method="POST">
+                    <!-- Personal Information -->
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-input" name="name" placeholder="Enter your full name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" name="username" placeholder="Choose a username" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" name="password" placeholder="Create a password" required>
+                    </div>
+
+                    <!-- Bus Information -->
+                    <div class="form-group">
+                        <label class="form-label">Select Your Bus</label>
+                        <select class="form-select" name="bus_number" required>
+                            <option value="">-- Select Bus Number --</option>
+                            <option value="BUS001">BUS 001 - Route A</option>
+                            <option value="BUS002">BUS 002 - Route B</option>
+                            <option value="BUS003">BUS 003 - Route C</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Bus Password</label>
+                        <input type="password" class="form-input" name="bus_password" placeholder="Enter your bus password" required>
+                        <small style="color: #666; font-size: 0.9rem;">*Get this password from your transport manager</small>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+
+                    <!-- Error Message -->
+                    {% if error %}
+                    <div class="error-message">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                </form>
+
+                <!-- Login Link -->
+                <div class="link-text">
+                    <p>Already have an account? <a href="{{ url_for('incharge_login') }}">Login here</a></p>
+                </div>
+
+                <!-- Back to Home -->
+                <div class="link-text">
+                    <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Smart Bus Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="profile-circle">
+                    {{ session.username[0]|upper }}
+                </div>
+                <div>
+                    <h3>Welcome, {{ session.username }}</h3>
+                    <p>Bus Incharge Dashboard</p>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+
+        <!-- Scanner Section -->
+        <div class="scanner-section">
+            <h2>Mark Attendance</h2>
+            <p>Scan student faces to mark attendance</p>
+
+            <div class="video-container">
+                <video id="videoElement" autoplay playsinline></video>
+                <canvas id="canvasElement" class="hidden"></canvas>
+            </div>
+
+            <div class="controls">
+                <button id="startCameraBtn" class="btn btn-primary">Start Camera</button>
+                <button id="captureBtn" class="btn btn-primary" disabled>Capture & Mark Attendance</button>
+                <button id="uploadBtn" class="btn btn-secondary" disabled>Or, Upload Photo</button>
+                <input type="file" id="fileInput" class="hidden" accept="image/*">
+            </div>
+
+            <div id="result" class="result-container hidden">
+                <h3>Result:</h3>
+                <p id="resultText"></p>
+            </div>
+
+            <div class="actions">
+                <button id="viewReportBtn" class="btn btn-secondary">View Today's Report</button>
+                <a href="{{ url_for('download_report') }}" class="btn btn-primary">Download Report</a>
+            </div>
+        </div>
+    </div>
+
+<!-- Mobile Nvigation -->
+<div class="mobile-only">
+    <div class="mobile-nav">
+        <a href="{{ url_for('incharge_dashboard') }}" class="mobile-nav-btn {% if request.path == '/incharge_dashboard' %}active{% endif %}">
+            <span style="font-size: 1.5rem;">📷</span>
+            <span>Scan</span>
+        </a>
+        <a href="{{ url_for('download_report') }}" class="mobile-nav-btn">
+            <span style="font-size: 1.5rem;">📊</span>
+            <span>Report</span>
+        </a>
+        <a href="{{ url_for('logout') }}" class="mobile-nav-btn">
+            <span style="font-size: 1.5rem;">🚪</span>
+            <span>Logout</span>
+        </a>
+    </div>
+</div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Smart Bus Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="profile-circle">
+                    {{ student_name[0]|upper }}
+                </div>
+                <div>
+                    <h3>Welcome, {{ student_name }}</h3>
+                    <p>Student Dashboard • Bus: {{ bus_number }}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+            </div>
+        </div>
+
+        <!-- Attendance Status Card -->
+        <div class="form-container">
+            <div class="form-box">
+                <h2>📊 Today's Attendance Status</h2>
+                
+                <div class="attendance-card" style="text-align: center; padding: 20px;">
+                    {% if attendance_status == 'Present' %}
+                    <div style="font-size: 4rem; color: #28a745;">✅</div>
+                    <h3 style="color: #28a745;">PRESENT</h3>
+                    <p>Your attendance was marked at <strong>{{ attendance_time }}</strong></p>
+                    <p>You are successfully marked present for today.</p>
+                    {% else %}
+                    <div style="font-size: 4rem; color: #dc3545;">❌</div>
+                    <h3 style="color: #dc3545;">NOT MARKED</h3>
+                    <p>Your attendance has not been marked yet today.</p>
+                    <p>Please see your bus incharge when you board the bus.</p>
+                    {% endif %}
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <p><strong>Roll Number:</strong> {{ roll_number }}</p>
+                        <p><strong>Date:</strong> {{ now }}</p>
+                    </div>
+                </div>
+
+                <!-- Refresh Button -->
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="window.location.reload()" class="btn btn-primary">
+                        🔄 Refresh Status
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="form-container">
+            <div class="form-box">
+                <h2>🚀 Quick Actions</h2>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="alert('Feature coming soon: Update your profile photo')">
+                        📸 Update Profile Photo
+                    </button>
+                    <button class="btn btn-secondary" onclick="alert('Feature coming soon: View your attendance history')">
+                        📅 View Attendance History
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Mobile Navigation -->
+<div class="mobile-only">
+    <div class="mobile-nav">
+        <a href="{{ url_for('incharge_dashboard') }}" class="mobile-nav-btn {% if request.path == '/incharge_dashboard' %}active{% endif %}">
+            <span style="font-size: 1.5rem;">📷</span>
+            <span>Scan</span>
+        </a>
+        <a href="{{ url_for('download_report') }}" class="mobile-nav-btn">
+            <span style="font-size: 1.5rem;">📊</span>
+            <span>Report</span>
+        </a>
+        <a href="{{ url_for('logout') }}" class="mobile-nav-btn">
+            <span style="font-size: 1.5rem;">🚪</span>
+            <span>Logout</span>
+        </a>
+    </div>
+</div>
+
+    <script>
+        // Add current date to the page
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            document.querySelector('p strong:last-child').textContent = now;
+        });
+    </script>
+</body>
+</html>

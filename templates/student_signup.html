@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Sign Up - Smart Bus Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Student Registration</h1>
+            <p>Join your bus attendance system</p>
+        </div>
+
+        <div class="form-container">
+            <div class="form-box">
+                <div class="form-title">
+                    <h2>Create Student Account</h2>
+                    <p>Enter your details to register</p>
+                </div>
+
+                <form action="{{ url_for('student_signup') }}" method="POST">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-input" name="name" placeholder="Enter your full name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">University Roll Number</label>
+                        <input type="text" class="form-input" name="roll_number" placeholder="e.g., 2420030539" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" name="password" placeholder="Create a password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Select Your Bus</label>
+                        <select class="form-select" name="bus_number" required>
+                            <option value="">-- Select Bus Number --</option>
+                            <option value="BUS001">BUS 001</option>
+                            <option value="BUS002">BUS 002</option>
+                            <option value="BUS003">BUS 003</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Bus Password</label>
+                        <input type="password" class="form-input" name="bus_password" placeholder="Enter your bus password" required>
+                        <small style="color: #666;">*Get this from your bus incharge or transport manager</small>
+                    </div>
+
+
+                    
+<div class="form-group">
+    <label class="form-label">Upload Your Photo</label>
+    <input type="file" class="form-input" name="student_photo" accept="image/*" required>
+    <small style="color: #666;">*Please upload a clear front-facing photo for face recognition</small>
+</div>
+
+                    <button type="submit" class="btn btn-primary btn-full">Register Now</button>
+
+                    {% if error %}
+                    <div class="error-message">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                </form>
+
+                <div class="link-text">
+                    <p>Already registered? <a href="{{ url_for('student_login') }}">Login here</a></p>
+                </div>
+
+                <div class="link-text">
+                    <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

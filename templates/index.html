@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bus Attendance System</title>
+    <!-- FLASK SYNTAX - for Render.com -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚍 Smart Bus Attendance System</h1>
+            <p>Automated face recognition attendance for school/college buses</p>
+        </div>
+
+        <div class="main-content">
+            <div class="welcome-box">
+                <h2>Welcome!</h2>
+                <p>Please select your role to continue</p>
+                
+                <div class="button-group">
+                    <!-- FLASK SYNTAX - for Render.com -->
+                    <a href="{{ url_for('incharge_signup') }}" class="btn btn-primary">
+                        Bus Incharge Sign Up
+                    </a>
+                    <a href="{{ url_for('incharge_login') }}" class="btn btn-secondary">
+                        Bus Incharge Login
+                    </a>
+                    <a href="{{ url_for('student_signup') }}" class="btn btn-primary">
+                        Student Sign Up
+                    </a>
+                    <a href="{{ url_for('student_login') }}" class="btn btn-secondary">
+                        Student Login
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <h3>Features:</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <span class="icon">📷</span>
+                    <h4>Face Recognition</h4>
+                    <p>Automated attendance using AI face detection</p>
+                </div>
+                <div class="feature-item">
+                    <span class="icon">⏰</span>
+                    <h4>Real-time Tracking</h4>
+                    <p>Live attendance updates and monitoring</p>
+                </div>
+                <div class="feature-item">
+                    <span class="icon">📊</span>
+                    <h4>Attendance Reports</h4>
+                    <p>Download detailed reports for administration</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
