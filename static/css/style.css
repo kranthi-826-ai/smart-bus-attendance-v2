@@ -513,3 +513,114 @@ html, body {
 .mobile-nav-btn.active {
     color: #4facfe;
 }
+/* Profile Section */
+.profile-section {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #007bff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 20px;
+    color: white;
+}
+
+.profile-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 5px;
+    min-width: 150px;
+    z-index: 1000;
+}
+
+.profile-menu a {
+    display: block;
+    padding: 10px 15px;
+    text-decoration: none;
+    color: #333;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-menu a:hover {
+    background: #f5f5f5;
+}
+
+/* Camera Section */
+.camera-section {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+}
+
+.camera-container {
+    margin: 15px 0;
+}
+
+.camera-controls {
+    margin: 15px 0;
+}
+
+.camera-controls button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#capture-btn {
+    background: #28a745;
+    color: white;
+}
+
+#retake-btn {
+    background: #ffc107;
+    color: black;
+}
+
+/* Status Colors */
+.status-present {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-absent {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Message Styles */
+.success {
+    color: #28a745;
+    padding: 10px;
+    background: #d4edda;
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.error {
+    color: #dc3545;
+    padding: 10px;
+    background: #f8d7da;
+    border-radius: 5px;
+    margin: 10px 0;
+}
+
+.info {
+    color: #17a2b8;
+    padding: 10px;
+    background: #d1ecf1;
+    border-radius: 5px;
+    margin: 10px 0;
+}

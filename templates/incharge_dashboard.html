@@ -3,74 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Smart Bus Attendance</title>
+    <title>Bus Incharge Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <!-- Profile Header -->
-        <div class="profile-header">
-            <div class="profile-info">
-                <div class="profile-circle">
-                    {{ session.username[0]|upper }}
-                </div>
-                <div>
-                    <h3>Welcome, {{ session.username }}</h3>
-                    <p>Bus Incharge Dashboard</p>
-                </div>
+        <h2>Bus Incharge Dashboard</h2>
+        <p>Welcome, {{ incharge_name }} | Bus: {{ bus_number }}</p>
+        
+        <!-- Camera Section for Face Scanning -->
+        <div class="camera-section">
+            <h3>Mark Attendance with Face Recognition</h3>
+            
+            <div class="camera-container">
+                <video id="video" width="400" height="300" autoplay></video>
+                <canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
             </div>
-            <div>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+            
+            <div class="camera-controls">
+                <button id="capture-btn" onclick="capturePhoto()">Capture & Mark Attendance</button>
+                <button id="retake-btn" onclick="retakePhoto()" style="display:none;">Retake Photo</button>
             </div>
+            
+            <div id="result-message"></div>
         </div>
 
-        <!-- Scanner Section -->
-        <div class="scanner-section">
-            <h2>Mark Attendance</h2>
-            <p>Scan student faces to mark attendance</p>
-
-            <div class="video-container">
-                <video id="videoElement" autoplay playsinline></video>
-                <canvas id="canvasElement" class="hidden"></canvas>
-            </div>
-
-            <div class="controls">
-                <button id="startCameraBtn" class="btn btn-primary">Start Camera</button>
-                <button id="captureBtn" class="btn btn-primary" disabled>Capture & Mark Attendance</button>
-                <button id="uploadBtn" class="btn btn-secondary" disabled>Or, Upload Photo</button>
-                <input type="file" id="fileInput" class="hidden" accept="image/*">
-            </div>
-
-            <div id="result" class="result-container hidden">
-                <h3>Result:</h3>
-                <p id="resultText"></p>
-            </div>
-
-            <div class="actions">
-                <button id="viewReportBtn" class="btn btn-secondary">View Today's Report</button>
-                <a href="{{ url_for('download_report') }}" class="btn btn-primary">Download Report</a>
-            </div>
+        <!-- Today's Attendance Records -->
+        <div class="attendance-records">
+            <h3>Today's Attendance</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>Roll Number</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="attendance-table">
+                    {% for record in attendance_records %}
+                    <tr>
+                        <td>{{ record.name }}</td>
+                        <td>{{ record.roll_number }}</td>
+                        <td>{{ record.status }}</td>
+                        <td>{{ record.marked_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        
+        <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 
-<!-- Mobile Nvigation -->
-<div class="mobile-only">
-    <div class="mobile-nav">
-        <a href="{{ url_for('incharge_dashboard') }}" class="mobile-nav-btn {% if request.path == '/incharge_dashboard' %}active{% endif %}">
-            <span style="font-size: 1.5rem;">📷</span>
-            <span>Scan</span>
-        </a>
-        <a href="{{ url_for('download_report') }}" class="mobile-nav-btn">
-            <span style="font-size: 1.5rem;">📊</span>
-            <span>Report</span>
-        </a>
-        <a href="{{ url_for('logout') }}" class="mobile-nav-btn">
-            <span style="font-size: 1.5rem;">🚪</span>
-            <span>Logout</span>
-        </a>
-    </div>
-</div>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Camera access
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Access camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera: ", err);
+                document.getElementById('result-message').innerHTML = 
+                    '<div class="error">Camera access denied. Please allow camera permissions.</div>';
+            });
+        
+        function capturePhoto() {
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, 400, 300);
+            
+            // Convert to blob and send to server
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('photo', blob, 'capture.jpg');
+                formData.append('bus_number', '{{ bus_number }}');
+                
+                // Show loading
+                document.getElementById('result-message').innerHTML = 
+                    '<div class="info">Processing face recognition...</div>';
+                
+                // Send to server for face recognition
+                fetch('/mark_attendance', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('result-message').innerHTML = 
+                            `<div class="success">✅ ${data.message}</div>`;
+                        // Refresh attendance records
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        document.getElementById('result-message').innerHTML = 
+                            `<div class="error">❌ ${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('result-message').innerHTML = 
+                        '<div class="error">Error marking attendance</div>';
+                });
+            }, 'image/jpeg');
+        }
+        
+        function retakePhoto() {
+            document.getElementById('capture-btn').style.display = 'block';
+            document.getElementById('retake-btn').style.display = 'none';
+            document.getElementById('result-message').innerHTML = '';
+        }
+    </script>
 </body>
 </html>
