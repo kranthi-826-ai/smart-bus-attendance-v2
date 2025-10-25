@@ -1,19 +1,71 @@
 import os
+import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from database import get_db_connection, init_db
-import cv2
-import numpy as np
-from deepface import DeepFace
 import uuid
+from PIL import Image
+import io
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-2024')
 app.config['UPLOAD_FOLDER'] = 'static/uploads/students'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Create upload directories if they don't exist
+# Create upload directories
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/uploads/temp', exist_ok=True)
+
+# Database connection
+def get_db_connection():
+    conn = sqlite3.connect('bus_attendance.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Students table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            roll_number TEXT UNIQUE NOT NULL,
+            university_id TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            bus_number TEXT NOT NULL,
+            photo_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Attendance table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            status TEXT NOT NULL,
+            bus_number TEXT NOT NULL,
+            marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students (id),
+            UNIQUE(student_id, date)
+        )
+    ''')
+    
+    # Bus incharge table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bus_incharge (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            bus_number TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
 
 # Initialize database
 init_db()
@@ -22,7 +74,6 @@ init_db()
 def index():
     return render_template('index.html')
 
-# Student Signup with Photo Upload
 @app.route('/student_signup', methods=['GET', 'POST'])
 def student_signup():
     if request.method == 'POST':
@@ -32,7 +83,6 @@ def student_signup():
         password = request.form['password']
         bus_number = request.form['bus_number']
         
-        # Handle photo upload
         if 'photo' not in request.files:
             flash('No photo uploaded', 'error')
             return render_template('student_signup.html')
@@ -44,22 +94,21 @@ def student_signup():
             return render_template('student_signup.html')
         
         if photo and allowed_file(photo.filename):
-            # Generate unique filename
-            filename = f"student_{roll_number}_{uuid.uuid4().hex[:8]}.jpg"
-            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
-            # Save the photo
-            photo.save(photo_path)
-            
-            # Verify the image is valid
+            # Validate image using PIL
             try:
-                img = cv2.imread(photo_path)
-                if img is None:
-                    raise ValueError("Invalid image file")
+                img = Image.open(photo)
+                img.verify()  # Verify it's a valid image
             except Exception as e:
-                os.remove(photo_path)  # Remove invalid file
-                flash('Invalid image file. Please upload a valid JPG image.', 'error')
+                flash('Invalid image file', 'error')
                 return render_template('student_signup.html')
+            
+            # Reset file pointer
+            photo.seek(0)
+            
+            # Save photo
+            filename = f"student_{roll_number}.jpg"
+            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            photo.save(photo_path)
             
             # Store in database
             conn = get_db_connection()
@@ -75,21 +124,17 @@ def student_signup():
                 flash('Student registered successfully! Please login.', 'success')
                 return redirect(url_for('student_login'))
                 
+            except sqlite3.IntegrityError:
+                flash('Roll number or University ID already exists', 'error')
             except Exception as e:
-                conn.rollback()
-                flash('Error registering student. Roll number or University ID might already exist.', 'error')
+                flash('Error registering student', 'error')
             finally:
                 conn.close()
         else:
-            flash('Please upload a valid JPG image', 'error')
+            flash('Please upload a valid JPG/PNG image', 'error')
     
     return render_template('student_signup.html')
 
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png'}
-
-# Student Login
 @app.route('/student_login', methods=['GET', 'POST'])
 def student_login():
     if request.method == 'POST':
@@ -114,17 +159,15 @@ def student_login():
     
     return render_template('student_login.html')
 
-# Student Dashboard
 @app.route('/student_dashboard')
 def student_dashboard():
     if 'student_id' not in session:
         return redirect(url_for('student_login'))
     
-    # Get student attendance data
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT date, status FROM attendance 
+        SELECT date, status, bus_number FROM attendance 
         WHERE student_id = ? ORDER BY date DESC LIMIT 10
     ''', (session['student_id'],))
     attendance_records = cursor.fetchall()
@@ -134,81 +177,44 @@ def student_dashboard():
                          student_name=session['student_name'],
                          attendance_records=attendance_records)
 
-# Mark Attendance with Face Recognition
-@app.route('/mark_attendance', methods=['POST'])
-def mark_attendance():
-    if 'photo' not in request.files:
-        return jsonify({'success': False, 'message': 'No photo uploaded'})
+# Simple attendance marking (manual for now)
+@app.route('/mark_attendance_manual', methods=['POST'])
+def mark_attendance_manual():
+    if 'student_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'})
     
-    photo = request.files['photo']
-    bus_number = request.form.get('bus_number')
+    student_id = session['student_id']
+    bus_number = request.form.get('bus_number', 'BUS001')
     
-    if photo.filename == '':
-        return jsonify({'success': False, 'message': 'No photo selected'})
-    
-    # Save temporary photo for processing
-    temp_filename = f"temp_{uuid.uuid4().hex[:8]}.jpg"
-    temp_path = os.path.join('static/uploads/temp', temp_filename)
-    photo.save(temp_path)
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
     try:
-        # Get all students in this bus
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM students WHERE bus_number = ?', (bus_number,))
-        students = cursor.fetchall()
+        cursor.execute('''
+            INSERT OR REPLACE INTO attendance (student_id, date, status, bus_number)
+            VALUES (?, DATE('now'), 'Present', ?)
+        ''', (student_id, bus_number))
         
-        best_match = None
-        best_score = 0
+        conn.commit()
+        conn.close()
         
-        # Compare with each student's photo
-        for student in students:
-            if student['photo_path'] and os.path.exists(student['photo_path']):
-                try:
-                    result = DeepFace.verify(
-                        temp_path, 
-                        student['photo_path'],
-                        model_name='VGG-Face',
-                        enforce_detection=False
-                    )
-                    
-                    if result['verified'] and result['distance'] > best_score:
-                        best_score = result['distance']
-                        best_match = student
-                        
-                except Exception as e:
-                    print(f"Face comparison error for {student['name']}: {e}")
-                    continue
-        
-        # If match found, mark attendance
-        if best_match and best_score > 0.5:  # Adjust threshold as needed
-            cursor.execute('''
-                INSERT OR REPLACE INTO attendance (student_id, date, status, bus_number)
-                VALUES (?, DATE('now'), 'Present', ?)
-            ''', (best_match['id'], bus_number))
-            
-            conn.commit()
-            conn.close()
-            
-            # Clean up temp file
-            os.remove(temp_path)
-            
-            return jsonify({
-                'success': True, 
-                'message': f'Attendance marked for {best_match["name"]}',
-                'student_name': best_match['name'],
-                'roll_number': best_match['roll_number']
-            })
-        else:
-            conn.close()
-            os.remove(temp_path)
-            return jsonify({'success': False, 'message': 'No matching student found'})
-            
+        return jsonify({
+            'success': True, 
+            'message': 'Attendance marked successfully!'
+        })
     except Exception as e:
-        # Clean up temp file in case of error
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        return jsonify({'success': False, 'message': f'Error processing attendance: {str(e)}'})
+        conn.close()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out successfully', 'success')
+    return redirect(url_for('index'))
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'jpg', 'jpeg', 'png', 'gif'}
 
 if __name__ == '__main__':
     app.run(debug=True)
