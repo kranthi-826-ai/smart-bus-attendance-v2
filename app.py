@@ -5,8 +5,10 @@ from datetime import datetime, date
 import uuid
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
-import pandas as pd
 from io import BytesIO
+import io
+import csv
+from flask import make_response
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'smart-bus-attendance-secret-2024')
@@ -406,10 +408,6 @@ def mark_attendance():
         return jsonify({'success': False, 'message': f'Error processing attendance: {str(e)}'})
 
 # Excel Download
-import io
-import csv
-from flask import make_response
-
 @app.route('/download_attendance_excel')
 def download_attendance_excel():
     if 'incharge_id' not in session or session.get('user_type') != 'incharge':
@@ -439,7 +437,7 @@ def download_attendance_excel():
     attendance_data = cursor.fetchall()
     conn.close()
     
-    # Create CSV instead of Excel
+    # Create CSV file in memory
     output = io.StringIO()
     writer = csv.writer(output)
     
@@ -448,12 +446,13 @@ def download_attendance_excel():
         headers = attendance_data[0].keys()
         writer.writerow(headers)
         
-        # Write data
+        # Write data rows
         for row in attendance_data:
             writer.writerow([row[header] for header in headers])
     
     output.seek(0)
     
+    # Create response with CSV file
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = f"attachment; filename=Bus_{bus_number}_Attendance_{current_date}.csv"
     response.headers["Content-type"] = "text/csv"
