@@ -44,7 +44,7 @@ def init_db():
         )
     ''')
     
-    # Students Table (Updated - removed roll_number)
+    # Students Table (Only University ID - NO roll_number)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,63 +93,8 @@ def init_db():
     conn.commit()
     conn.close()
 
-def update_database_schema():
-    """Update database schema to match current requirements"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        # Check if university_id column exists in students table
-        cursor.execute("PRAGMA table_info(students)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'university_id' not in columns:
-            # Add university_id column and remove roll_number
-            cursor.execute('''
-                CREATE TABLE students_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    university_id TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    bus_number TEXT NOT NULL,
-                    photo_path TEXT,
-                    face_encoding TEXT,
-                    is_verified BOOLEAN DEFAULT 0,
-                    is_active BOOLEAN DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Copy data from old table to new table
-            cursor.execute('''
-                INSERT INTO students_new (id, name, university_id, password, bus_number, photo_path, face_encoding, is_verified, is_active, created_at)
-                SELECT id, name, roll_number, password, bus_number, photo_path, face_encoding, is_verified, is_active, created_at 
-                FROM students
-            ''')
-            
-            # Drop old table and rename new one
-            cursor.execute('DROP TABLE students')
-            cursor.execute('ALTER TABLE students_new RENAME TO students')
-        
-        # Check if marked_at column exists in attendance table
-        cursor.execute("PRAGMA table_info(attendance)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'marked_at' not in columns:
-            cursor.execute('ALTER TABLE attendance ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-        
-        conn.commit()
-        print("Database schema updated successfully")
-        
-    except Exception as e:
-        print(f"Error updating database schema: {str(e)}")
-        conn.rollback()
-    finally:
-        conn.close()
-
-# Initialize database
+# Initialize database FIRST
 init_db()
-update_database_schema()  # Update schema after initialization
 
 # Routes
 @app.route('/')
@@ -184,9 +129,6 @@ def student_signup():
             # Save the photo
             photo.save(photo_path)
             
-            # For now, store simulated face encoding
-            face_encoding = "simulated_encoding_for_demo"
-            
             # Store in database
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -195,7 +137,7 @@ def student_signup():
                 cursor.execute('''
                     INSERT INTO students (name, university_id, password, bus_number, photo_path, face_encoding)
                     VALUES (?, ?, ?, ?, ?, ?)
-                ''', (name, university_id, password, bus_number, photo_path, face_encoding))
+                ''', (name, university_id, password, bus_number, photo_path, "simulated_face_encoding"))
                 
                 conn.commit()
                 flash('Student registered successfully! You can now login.', 'success')
@@ -520,47 +462,6 @@ def download_attendance_excel():
     
     return response
 
-# Profile Management Routes
-@app.route('/edit_profile')
-def edit_profile():
-    if 'student_id' not in session:
-        return redirect(url_for('student_login'))
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM students WHERE id = ?', (session['student_id'],))
-    student = cursor.fetchone()
-    conn.close()
-    
-    return render_template('edit_profile.html', student=student)
-
-@app.route('/change_password')
-def change_password():
-    if 'student_id' not in session and 'incharge_id' not in session:
-        return redirect(url_for('index'))
-    
-    return render_template('change_password.html')
-
-@app.route('/incharge_edit_profile')
-def incharge_edit_profile():
-    if 'incharge_id' not in session:
-        return redirect(url_for('incharge_login'))
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM bus_incharge WHERE id = ?', (session['incharge_id'],))
-    incharge = cursor.fetchone()
-    conn.close()
-    
-    return render_template('incharge_edit_profile.html', incharge=incharge)
-
-@app.route('/incharge_change_password')
-def incharge_change_password():
-    if 'incharge_id' not in session:
-        return redirect(url_for('incharge_login'))
-    
-    return render_template('incharge_change_password.html')
-
 # Logout
 @app.route('/logout')
 def logout():
@@ -579,145 +480,6 @@ def datetimeformat(value, format='%Y-%m-%d'):
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     return value.strftime(format)
-
-# Profile Update Routes
-@app.route('/update_profile', methods=['POST'])
-def update_profile():
-    if 'student_id' not in session:
-        return redirect(url_for('student_login'))
-    
-    name = request.form['name']
-    bus_number = request.form['bus_number']
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        # Handle photo upload if provided
-        photo_path = None
-        if 'photo' in request.files:
-            photo = request.files['photo']
-            if photo and photo.filename != '' and allowed_file(photo.filename):
-                # Generate new filename
-                filename = f"student_{session['student_university_id']}_{uuid.uuid4().hex[:8]}.jpg"
-                photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                photo.save(photo_path)
-        
-        if photo_path:
-            cursor.execute('''
-                UPDATE students 
-                SET name = ?, bus_number = ?, photo_path = ?, face_encoding = ?
-                WHERE id = ?
-            ''', (name, bus_number, photo_path, "simulated_encoding_updated", session['student_id']))
-        else:
-            cursor.execute('''
-                UPDATE students 
-                SET name = ?, bus_number = ?
-                WHERE id = ?
-            ''', (name, bus_number, session['student_id']))
-        
-        conn.commit()
-        session['student_name'] = name
-        flash('Profile updated successfully!', 'success')
-        
-    except Exception as e:
-        conn.rollback()
-        flash('Error updating profile', 'error')
-    finally:
-        conn.close()
-    
-    return redirect(url_for('student_dashboard'))
-
-@app.route('/update_password', methods=['POST'])
-def update_password():
-    if 'student_id' not in session and 'incharge_id' not in session:
-        return redirect(url_for('index'))
-    
-    current_password = request.form['current_password']
-    new_password = request.form['new_password']
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        if 'student_id' in session:
-            # Verify current password for student
-            cursor.execute('SELECT password FROM students WHERE id = ?', (session['student_id'],))
-            student = cursor.fetchone()
-            
-            if student and student['password'] == current_password:
-                cursor.execute('UPDATE students SET password = ? WHERE id = ?', 
-                             (new_password, session['student_id']))
-                conn.commit()
-                flash('Password updated successfully!', 'success')
-            else:
-                flash('Current password is incorrect', 'error')
-                
-        elif 'incharge_id' in session:
-            # Verify current password for incharge
-            cursor.execute('SELECT password FROM bus_incharge WHERE id = ?', (session['incharge_id'],))
-            incharge = cursor.fetchone()
-            
-            if incharge and incharge['password'] == current_password:
-                cursor.execute('UPDATE bus_incharge SET password = ? WHERE id = ?', 
-                             (new_password, session['incharge_id']))
-                conn.commit()
-                flash('Password updated successfully!', 'success')
-            else:
-                flash('Current password is incorrect', 'error')
-                
-    except Exception as e:
-        conn.rollback()
-        flash('Error updating password', 'error')
-    finally:
-        conn.close()
-    
-    if 'student_id' in session:
-        return redirect(url_for('student_dashboard'))
-    else:
-        return redirect(url_for('incharge_dashboard'))
-
-@app.route('/update_incharge_profile', methods=['POST'])
-def update_incharge_profile():
-    if 'incharge_id' not in session:
-        return redirect(url_for('incharge_login'))
-    
-    name = request.form['name']
-    email = request.form['email']
-    phone_number = request.form.get('phone_number', '')
-    bus_password = request.form['bus_password']
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-            UPDATE bus_incharge 
-            SET name = ?, email = ?, phone_number = ?, bus_password = ?
-            WHERE id = ?
-        ''', (name, email, phone_number, bus_password, session['incharge_id']))
-        
-        conn.commit()
-        session['incharge_name'] = name
-        flash('Profile updated successfully!', 'success')
-        
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        flash('Email already exists', 'error')
-    except Exception as e:
-        conn.rollback()
-        flash('Error updating profile', 'error')
-    finally:
-        conn.close()
-    
-    return redirect(url_for('incharge_dashboard'))
-
-@app.route('/update_incharge_password', methods=['POST'])
-def update_incharge_password():
-    if 'incharge_id' not in session:
-        return redirect(url_for('incharge_login'))
-    
-    return update_password()  # Reuse the same function
 
 if __name__ == '__main__':
     app.run(debug=True)
