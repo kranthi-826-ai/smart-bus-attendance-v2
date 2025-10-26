@@ -1,7 +1,0 @@
-*.db
-*.sqlite3
-bus_attendance.db
-static/uploads/students/*
-static/uploads/temp/*
-!static/uploads/students/.gitkeep
-!static/uploads/temp/.gitkeep

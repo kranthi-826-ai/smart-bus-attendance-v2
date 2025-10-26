@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="card fade-in">
+        <h1 style="color: var(--dark); margin-bottom: 1rem;">
+            <i class="fas fa-tachometer-alt"></i> Bus Incharge Dashboard
+        </h1>
+        <p style="color: var(--secondary); font-size: 1.1rem;">
+            Welcome, {{ incharge_name }} | Bus {{ bus_number }}
+        </p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card slide-in">
+            <div class="stat-number">{{ student_count }}</div>
+            <div class="stat-label">Total Students</div>
+            <i class="fas fa-users" style="font-size: 2rem; color: var(--primary); margin-top: 1rem;"></i>
+        </div>
+
+        <div class="stat-card slide-in">
+            <div class="stat-number">{{ today_attendance }}</div>
+            <div class="stat-label">Today's Attendance</div>
+            <i class="fas fa-clipboard-check" style="font-size: 2rem; color: var(--success); margin-top: 1rem;"></i>
+        </div>
+
+        <div class="stat-card slide-in">
+            <div class="stat-number">Bus {{ bus_number }}</div>
+            <div class="stat-label">Your Bus</div>
+            <i class="fas fa-bus" style="font-size: 2rem; color: var(--warning); margin-top: 1rem;"></i>
+        </div>
+    </div>
+
+    <div class="card fade-in">
+        <h3 style="margin-bottom: 1.5rem; color: var(--dark);">
+            <i class="fas fa-cogs"></i> Quick Actions
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <a href="{{ url_for('attendance.scan_attendance') }}" class="btn btn-primary" style="text-align: center;">
+                <i class="fas fa-camera"></i><br>Take Attendance
+            </a>
+            
+            <button onclick="viewTodayAttendance()" class="btn btn-success">
+                <i class="fas fa-list"></i><br>View Today's List
+            </button>
+            
+            <button onclick="downloadAttendance()" class="btn btn-outline">
+                <i class="fas fa-download"></i><br>Download Report
+            </button>
+            
+            <button onclick="changeBusPassword()" class="btn btn-warning">
+                <i class="fas fa-key"></i><br>Change Bus Password
+            </button>
+        </div>
+    </div>
+
+    <div class="card fade-in" id="attendanceList" style="display: none;">
+        <h3>Today's Attendance</h3>
+        <div id="attendanceData"></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+function changeBusPassword() {
+    const newPassword = prompt('Enter new bus password:');
+    if (newPassword && newPassword.length >= 4) {
+        fetch('/attendance/change-bus-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: newPassword })
+        })
+        .then(response => response.json())
+        .then(result => {
+            showNotification(result.message, result.success ? 'success' : 'error');
+        });
+    }
+}
+</script>
+{% endblock %}

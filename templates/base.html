@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bus Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="bus-animation">
+            <i class="fas fa-bus moving-bus"></i>
+        </div>
+        <div class="floating-icons">
+            <i class="fas fa-user-graduate"></i>
+            <i class="fas fa-camera"></i>
+            <i class="fas fa-qrcode"></i>
+            <i class="fas fa-clock"></i>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-bus"></i>
+                <span>Smart Bus Attendance</span>
+            </div>
+            <div class="nav-links">
+                {% if session.role == 'student' %}
+                    <a href="{{ url_for('student.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                {% elif session.role == 'incharge' %}
+                    <a href="{{ url_for('incharge.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ url_for('attendance.scan_attendance') }}" class="nav-link">Take Attendance</a>
+                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+                    <div class="auth-buttons">
+                        <a href="{{ url_for('student.login') }}" class="btn btn-outline">Student Login</a>
+                        <a href="{{ url_for('incharge.login') }}" class="btn btn-primary">Incharge Login</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>

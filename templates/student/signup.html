@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="card fade-in" style="max-width: 600px; margin: 2rem auto;">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: var(--dark);">
+            <i class="fas fa-user-graduate"></i> Student Signup
+        </h2>
+        
+        <form id="signupForm">
+            <!-- Step 1: Basic Info -->
+            <div id="step1">
+                <div class="form-group">
+                    <label class="form-label">University ID</label>
+                    <input type="text" class="form-input" name="university_id" 
+                           placeholder="2420030123" required pattern="[0-9]{10}">
+                    <small style="color: var(--secondary);">10-digit University ID (e.g., 2420030123)</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bus Number</label>
+                    <select class="form-input" name="bus_number" required>
+                        <option value="">Select Bus</option>
+                        {% for i in range(1, 6) %}
+                        <option value="{{ i }}">Bus {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bus Password</label>
+                    <input type="password" class="form-input" name="bus_password" required>
+                    <small style="color: var(--secondary);">Get this from your bus incharge</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Login Password</label>
+                    <input type="password" class="form-input" name="password" required minlength="6">
+                </div>
+
+                <button type="button" onclick="showFaceScan()" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-camera"></i> Next: Face Scanning
+                </button>
+            </div>
+
+            <!-- Step 2: Face Scanning -->
+            <div id="step2" style="display: none;">
+                <h3 style="text-align: center; margin-bottom: 1rem; color: var(--dark);">
+                    <i class="fas fa-camera"></i> Face Scanning
+                </h3>
+                
+                <div class="camera-container">
+                    <div class="camera-preview">
+                        <video id="cameraFeed" autoplay playsinline></video>
+                        <div class="face-overlay"></div>
+                    </div>
+                    
+                    <div class="camera-controls" style="margin: 1rem 0;">
+                        <button type="button" id="switchCamera" class="btn btn-outline">
+                            <i class="fas fa-camera-rotate"></i> Switch Camera
+                        </button>
+                        <button type="button" id="captureFace" class="btn btn-success">
+                            <i class="fas fa-camera"></i> Capture Face
+                        </button>
+                    </div>
+                    
+                    <div id="captureResult" style="display: none;">
+                        <div style="background: var(--success); color: white; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                            <i class="fas fa-check-circle"></i> Face captured successfully!
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="button" onclick="showBasicInfo()" class="btn btn-outline" style="flex: 1;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-user-plus"></i> Complete Signup
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="{{ url_for('student.login') }}" style="color: var(--primary);">
+                Already have an account? Login
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+<script>
+let capturedFaceData = null;
+
+function showFaceScan() {
+    // Validate basic info first
+    const universityId = document.querySelector('input[name="university_id"]').value;
+    const name = document.querySelector('input[name="name"]').value;
+    const busNumber = document.querySelector('select[name="bus_number"]').value;
+    const busPassword = document.querySelector('input[name="bus_password"]').value;
+    const password = document.querySelector('input[name="password"]').value;
+    
+    if (!universityId || !name || !busNumber || !busPassword || !password) {
+        showNotification('Please fill all basic information first', 'error');
+        return;
+    }
+    
+    // Initialize camera and show face scanning step
+    initializeSignupCamera();
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+}
+
+function showBasicInfo() {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
+    stopSignupCamera();
+}
+
+async function initializeSignupCamera() {
+    try {
+        await camera.initializeCamera();
+        showNotification('Camera ready for face scanning', 'success');
+        
+        // Setup capture button
+        document.getElementById('captureFace').addEventListener('click', captureStudentFace);
+        document.getElementById('switchCamera').addEventListener('click', () => camera.switchCamera());
+    } catch (error) {
+        showNotification('Camera access failed: ' + error.message, 'error');
+    }
+}
+
+function stopSignupCamera() {
+    camera.stopCamera();
+}
+
+async function captureStudentFace() {
+    if (camera.isScanning) return;
+    
+    camera.isScanning = true;
+    const captureBtn = document.getElementById('captureFace');
+    const originalText = captureBtn.innerHTML;
+    
+    captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Capturing...';
+    captureBtn.disabled = true;
+
+    try {
+        // Capture face frame
+        const imageData = camera.captureFrame();
+        capturedFaceData = imageData;
+        
+        // Show success message
+        document.getElementById('captureResult').style.display = 'block';
+        showNotification('Face captured successfully!', 'success');
+        
+    } catch (error) {
+        showNotification('Face capture failed: ' + error.message, 'error');
+    } finally {
+        captureBtn.innerHTML = originalText;
+        captureBtn.disabled = false;
+        camera.isScanning = false;
+    }
+}
+
+// Handle form submission
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!capturedFaceData) {
+        showNotification('Please capture your face first', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    
+    // Add all form data
+    const basicData = new FormData(e.target);
+    for (let [key, value] of basicData) {
+        formData.append(key, value);
+    }
+    
+    // Add face image data
+    formData.append('face_image_data', capturedFaceData);
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/student/signup', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => {
+                window.location.href = '/student/login';
+            }, 2000);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Please try again.', 'error');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+// Stop camera when leaving page
+window.addEventListener('beforeunload', stopSignupCamera);
+</script>
+
+<style>
+.face-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 250px;
+    border: 3px solid #00ff00;
+    border-radius: 10px;
+    pointer-events: none;
+}
+</style>
+{% endblock %}

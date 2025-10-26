@@ -1,0 +1,145 @@
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+import hashlib
+from models.models import Database
+from utils.face_encoder import FaceEncoder
+import os
+import base64
+from datetime import datetime
+import uuid
+
+student_bp = Blueprint('student', __name__)
+db = Database()
+face_encoder = FaceEncoder()
+
+@student_bp.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        try:
+            data = request.form
+            university_id = data.get('university_id')
+            password = data.get('password')
+            name = data.get('name')
+            bus_number = int(data.get('bus_number'))
+            bus_password = data.get('bus_password')
+            face_image_data = data.get('face_image_data')  # Base64 image from camera
+            
+            # Validate university ID format (2420030___ - 10 digits)
+            if not university_id.isdigit() or len(university_id) != 10:
+                return jsonify({'success': False, 'message': 'Invalid University ID format. Must be 10 digits.'})
+            
+            # Check if university ID already exists
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM students WHERE university_id = ?", (university_id,))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({'success': False, 'message': 'University ID already registered'})
+            
+            # Verify bus password
+            cursor.execute("SELECT bus_password FROM bus_incharges WHERE bus_number = ?", (bus_number,))
+            bus_data = cursor.fetchone()
+            
+            if not bus_data:
+                conn.close()
+                return jsonify({'success': False, 'message': 'Invalid bus number'})
+            
+            if bus_data[0] != bus_password:
+                conn.close()
+                return jsonify({'success': False, 'message': 'Invalid bus password'})
+            
+            # Process face image from camera
+            if not face_image_data:
+                return jsonify({'success': False, 'message': 'Please capture your face using the camera'})
+            
+            # Convert base64 image to file
+            try:
+                # Remove data:image/jpeg;base64, prefix if present
+                if ',' in face_image_data:
+                    face_image_data = face_image_data.split(',')[1]
+                
+                image_bytes = base64.b64decode(face_image_data)
+                
+                # Save temporary image
+                temp_filename = f"temp_face_{university_id}_{uuid.uuid4().hex[:8]}.jpg"
+                temp_image_path = os.path.join("static/uploads/faces", temp_filename)
+                
+                # Ensure directory exists
+                os.makedirs("static/uploads/faces", exist_ok=True)
+                
+                with open(temp_image_path, 'wb') as f:
+                    f.write(image_bytes)
+                
+                # Extract face encoding
+                face_encoding, message = face_encoder.capture_face_encoding(temp_image_path)
+                
+                # Remove temp image
+                if os.path.exists(temp_image_path):
+                    os.remove(temp_image_path)
+                
+                if not face_encoding:
+                    return jsonify({'success': False, 'message': message})
+                
+            except Exception as e:
+                return jsonify({'success': False, 'message': f'Face processing error: {str(e)}'})
+            
+            # Hash password
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            
+            # Insert student data
+            cursor.execute('''
+                INSERT INTO students (university_id, password, name, bus_number, bus_password, face_encoding)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (university_id, hashed_password, name, bus_number, bus_password, face_encoding))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Student registered successfully with face encoding! You can now login.'
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Registration error: {str(e)}'})
+    
+    return render_template('student/signup.html')
+
+# Keep the rest of the routes the same (login, dashboard)
+@student_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        university_id = request.form.get('university_id')
+        password = request.form.get('password')
+        
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT university_id, name, bus_number FROM students 
+            WHERE university_id = ? AND password = ?
+        ''', (university_id, hashed_password))
+        
+        student = cursor.fetchone()
+        conn.close()
+        
+        if student:
+            session['student_id'] = student[0]
+            session['student_name'] = student[1]
+            session['bus_number'] = student[2]
+            session['role'] = 'student'
+            return jsonify({'success': True, 'message': 'Login successful!'})
+        else:
+            return jsonify({'success': False, 'message': 'Invalid University ID or password'})
+    
+    return render_template('student/login.html')
+
+@student_bp.route('/dashboard')
+def dashboard():
+    if 'student_id' not in session or session.get('role') != 'student':
+        return redirect(url_for('student.login'))
+    
+    return render_template('student/dashboard.html', 
+                         student_name=session.get('student_name'),
+                         university_id=session.get('student_id'),
+                         bus_number=session.get('bus_number'))

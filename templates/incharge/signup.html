@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="card fade-in" style="max-width: 500px; margin: 2rem auto;">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: var(--dark);">
+            <i class="fas fa-bus-alt"></i> Bus Incharge Signup
+        </h2>
+        
+        <div id="signupStep1">
+            <form id="signupForm">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-input" name="phone" required pattern="[0-9]{10}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bus Number</label>
+                    <select class="form-input" name="bus_number" required>
+                        <option value="">Select Bus</option>
+                        {% for i in range(1, 6) %}
+                        <option value="{{ i }}">Bus {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-paper-plane"></i> Send OTP
+                </button>
+            </form>
+        </div>
+
+        <div id="signupStep2" style="display: none;">
+            <div class="form-group">
+                <label class="form-label">Enter OTP</label>
+                <input type="text" class="form-input" id="otpInput" placeholder="6-digit OTP" maxlength="6">
+                <small style="color: var(--secondary);" id="otpDemo"></small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Set Bus Password</label>
+                <input type="password" class="form-input" id="busPassword" required minlength="4">
+                <small style="color: var(--secondary);">Students will need this to register for your bus</small>
+            </div>
+
+            <button onclick="verifyOTP()" class="btn btn-success" style="width: 100%;">
+                <i class="fas fa-check"></i> Verify & Complete
+            </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="{{ url_for('incharge.login') }}" style="color: var(--primary);">
+                Already registered? Login
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentOtpHash = '';
+
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending OTP...';
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/incharge/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentOtpHash = result.otp_hash;
+            document.getElementById('otpDemo').textContent = `Demo OTP: ${result.demo_otp}`;
+            document.getElementById('signupStep1').style.display = 'none';
+            document.getElementById('signupStep2').style.display = 'block';
+            showNotification(result.message, 'success');
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Please try again.', 'error');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+async function verifyOTP() {
+    const otp = document.getElementById('otpInput').value;
+    const busPassword = document.getElementById('busPassword').value;
+    
+    if (!otp || !busPassword) {
+        showNotification('Please enter OTP and bus password', 'error');
+        return;
+    }
+    
+    const verifyBtn = event.target;
+    const originalText = verifyBtn.innerHTML;
+    
+    verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    verifyBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/incharge/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                otp_hash: currentOtpHash,
+                otp: otp,
+                bus_password: busPassword,
+                bus_number: document.querySelector('select[name="bus_number"]').value
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => {
+                window.location.href = '/incharge/login';
+            }, 2000);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Please try again.', 'error');
+    } finally {
+        verifyBtn.innerHTML = originalText;
+        verifyBtn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

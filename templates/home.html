@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero-section">
+    <h1 class="hero-title fade-in">
+        <i class="fas fa-bus"></i><br>
+        Smart Bus Attendance
+    </h1>
+    <p class="hero-subtitle fade-in">
+        Automated Face Recognition System for College Bus Attendance
+    </p>
+    
+    <div class="auth-buttons" style="justify-content: center; margin: 2rem 0;">
+        <a href="{{ url_for('student.signup') }}" class="btn btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: white;">
+            <i class="fas fa-user-graduate"></i> Student Signup
+        </a>
+        <a href="{{ url_for('student.login') }}" class="btn btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: white;">
+            <i class="fas fa-sign-in-alt"></i> Student Login
+        </a>
+        <a href="{{ url_for('incharge.signup') }}" class="btn btn-primary" style="background: #ffd700; color: #333; border: none;">
+            <i class="fas fa-bus-alt"></i> Incharge Signup
+        </a>
+        <a href="{{ url_for('incharge.login') }}" class="btn btn-primary" style="background: #ffd700; color: #333; border: none;">
+            <i class="fas fa-sign-in-alt"></i> Incharge Login
+        </a>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card slide-in">
+            <div class="feature-icon">
+                <i class="fas fa-camera"></i>
+            </div>
+            <h3>Face Recognition</h3>
+            <p>Advanced face scanning technology for accurate attendance</p>
+        </div>
+        
+        <div class="feature-card slide-in">
+            <div class="feature-icon">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <h3>Fast Processing</h3>
+            <p>Quick attendance marking with real-time face matching</p>
+        </div>
+        
+        <div class="feature-card slide-in">
+            <div class="feature-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h3>Secure & Reliable</h3>
+            <p>OTP authentication and secure data management</p>
+        </div>
+        
+        <div class="feature-card slide-in">
+            <div class="feature-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3>Smart Reports</h3>
+            <p>Download attendance reports and analytics</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

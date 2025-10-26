@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="card fade-in">
+        <h1 style="color: var(--dark); margin-bottom: 1rem;">
+            <i class="fas fa-user-graduate"></i> Student Dashboard
+        </h1>
+        <p style="color: var(--secondary); font-size: 1.1rem;">
+            Welcome, {{ student_name }} | {{ university_id }} | Bus {{ bus_number }}
+        </p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card slide-in">
+            <div class="stat-number">{{ university_id }}</div>
+            <div class="stat-label">Your University ID</div>
+            <i class="fas fa-id-card" style="font-size: 2rem; color: var(--primary); margin-top: 1rem;"></i>
+        </div>
+
+        <div class="stat-card slide-in">
+            <div class="stat-number">Bus {{ bus_number }}</div>
+            <div class="stat-label">Your Bus</div>
+            <i class="fas fa-bus" style="font-size: 2rem; color: var(--warning); margin-top: 1rem;"></i>
+        </div>
+
+        <div class="stat-card slide-in">
+            <div class="stat-label">Attendance Status</div>
+            <div id="attendanceStatus" style="font-size: 1.2rem; margin: 1rem 0;">
+                <i class="fas fa-sync fa-spin"></i> Checking...
+            </div>
+            <i class="fas fa-clipboard-list" style="font-size: 2rem; color: var(--success);"></i>
+        </div>
+    </div>
+
+    <div class="card fade-in">
+        <h3 style="margin-bottom: 1.5rem; color: var(--dark);">
+            <i class="fas fa-user-cog"></i> Profile Management
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <button onclick="updateProfile()" class="btn btn-primary">
+                <i class="fas fa-edit"></i><br>Update Profile
+            </button>
+            
+            <button onclick="changePassword()" class="btn btn-outline">
+                <i class="fas fa-key"></i><br>Change Password
+            </button>
+            
+            <button onclick="requestIdChange()" class="btn btn-warning">
+                <i class="fas fa-id-card-alt"></i><br>Request ID Change
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Check today's attendance status
+async function checkAttendance() {
+    try {
+        // This would call an API to check if student is marked present today
+        // For now, simulate API call
+        setTimeout(() => {
+            const status = Math.random() > 0.3 ? 'Present' : 'Not Marked';
+            const color = status === 'Present' ? 'var(--success)' : 'var(--warning)';
+            const icon = status === 'Present' ? 'fa-check-circle' : 'fa-clock';
+            
+            document.getElementById('attendanceStatus').innerHTML = `
+                <i class="fas ${icon}" style="color: ${color};"></i>
+                <span style="color: ${color}; font-weight: bold;">${status}</span>
+            `;
+        }, 1000);
+    } catch (error) {
+        document.getElementById('attendanceStatus').innerHTML = `
+            <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+            <span style="color: var(--danger);">Error</span>
+        `;
+    }
+}
+
+// Call on page load
+checkAttendance();
+
+function updateProfile() {
+    showNotification('Profile update feature coming soon!', 'info');
+}
+
+function changePassword() {
+    showNotification('Password change feature coming soon!', 'info');
+}
+
+function requestIdChange() {
+    showNotification('ID change request feature coming soon!', 'info');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="card fade-in" style="max-width: 500px; margin: 2rem auto;">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: var(--dark);">
+            <i class="fas fa-bus-alt"></i> Bus Incharge Login
+        </h2>
+        
+        <div id="loginStep1">
+            <div class="form-group">
+                <label class="form-label">Login with</label>
+                <select class="form-input" id="loginType">
+                    <option value="phone">Phone Number</option>
+                    <option value="email">Email</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" id="loginLabel">Phone Number</label>
+                <input type="text" class="form-input" id="loginId" 
+                       placeholder="Enter phone number" required>
+            </div>
+
+            <button onclick="sendLoginOTP()" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-paper-plane"></i> Send OTP
+            </button>
+        </div>
+
+        <div id="loginStep2" style="display: none;">
+            <div class="form-group">
+                <label class="form-label">Enter OTP</label>
+                <input type="text" class="form-input" id="loginOtp" placeholder="6-digit OTP" maxlength="6" required>
+                <small style="color: var(--secondary);">Check your phone for OTP</small>
+            </div>
+
+            <button onclick="verifyLoginOTP()" class="btn btn-success" style="width: 100%;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+
+            <button onclick="goBackToStep1()" class="btn btn-outline" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="{{ url_for('incharge.signup') }}" style="color: var(--primary);">
+                New incharge? Sign up here
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+let loginOtpHash = '';
+let inchargeId = '';
+
+document.getElementById('loginType').addEventListener('change', function() {
+    const label = this.value === 'phone' ? 'Phone Number' : 'Email Address';
+    const placeholder = this.value === 'phone' ? 'Enter 10-digit phone number' : 'Enter email address';
+    
+    document.getElementById('loginLabel').textContent = label;
+    document.getElementById('loginId').placeholder = placeholder;
+});
+
+async function sendLoginOTP() {
+    const loginId = document.getElementById('loginId').value;
+    const loginType = document.getElementById('loginType').value;
+    
+    if (!loginId) {
+        showNotification(`Please enter ${loginType === 'phone' ? 'phone number' : 'email'}`, 'error');
+        return;
+    }
+    
+    // Validate phone number
+    if (loginType === 'phone' && !/^[0-9]{10}$/.test(loginId)) {
+        showNotification('Please enter a valid 10-digit phone number', 'error');
+        return;
+    }
+    
+    // Validate email
+    if (loginType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginId)) {
+        showNotification('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('login_id', loginId);
+    formData.append('login_type', loginType);
+    
+    const sendBtn = event.target;
+    const originalText = sendBtn.innerHTML;
+    
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending OTP...';
+    sendBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/incharge/login', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            loginOtpHash = result.otp_hash;
+            inchargeId = result.incharge_id;
+            document.getElementById('loginStep1').style.display = 'none';
+            document.getElementById('loginStep2').style.display = 'block';
+            showNotification('OTP sent successfully! Check your phone.', 'success');
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Please try again.', 'error');
+    } finally {
+        sendBtn.innerHTML = originalText;
+        sendBtn.disabled = false;
+    }
+}
+
+async function verifyLoginOTP() {
+    const otp = document.getElementById('loginOtp').value;
+    
+    if (!otp || otp.length !== 6) {
+        showNotification('Please enter 6-digit OTP', 'error');
+        return;
+    }
+    
+    const verifyBtn = event.target;
+    const originalText = verifyBtn.innerHTML;
+    
+    verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    verifyBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/incharge/verify-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                otp_hash: loginOtpHash,
+                otp: otp,
+                incharge_id: inchargeId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Login successful!', 'success');
+            setTimeout(() => {
+                window.location.href = '/incharge/dashboard';
+            }, 1000);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Please try again.', 'error');
+    } finally {
+        verifyBtn.innerHTML = originalText;
+        verifyBtn.disabled = false;
+    }
+}
+
+function goBackToStep1() {
+    document.getElementById('loginStep1').style.display = 'block';
+    document.getElementById('loginStep2').style.display = 'none';
+    document.getElementById('loginOtp').value = '';
+}
+</script>
+{% endblock %}
