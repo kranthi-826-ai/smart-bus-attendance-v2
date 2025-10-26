@@ -406,6 +406,10 @@ def mark_attendance():
         return jsonify({'success': False, 'message': f'Error processing attendance: {str(e)}'})
 
 # Excel Download
+import io
+import csv
+from flask import make_response
+
 @app.route('/download_attendance_excel')
 def download_attendance_excel():
     if 'incharge_id' not in session or session.get('user_type') != 'incharge':
@@ -435,41 +439,26 @@ def download_attendance_excel():
     attendance_data = cursor.fetchall()
     conn.close()
     
-    # Create DataFrame
-    df = pd.DataFrame([dict(row) for row in attendance_data])
+    # Create CSV instead of Excel
+    output = io.StringIO()
+    writer = csv.writer(output)
     
-    # Create Excel file in memory
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name=f'Attendance_{current_date}', index=False)
+    # Write header
+    if attendance_data:
+        headers = attendance_data[0].keys()
+        writer.writerow(headers)
         
-        # Get the worksheet
-        worksheet = writer.sheets[f'Attendance_{current_date}']
-        
-        # Adjust column widths
-        for column in worksheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+        # Write data
+        for row in attendance_data:
+            writer.writerow([row[header] for header in headers])
     
     output.seek(0)
     
-    filename = f"Bus_{bus_number}_Attendance_{current_date}.xlsx"
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename=Bus_{bus_number}_Attendance_{current_date}.csv"
+    response.headers["Content-type"] = "text/csv"
     
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=filename
-    )
-
+    return response
 # Profile Management Routes
 @app.route('/edit_profile')
 def edit_profile():
