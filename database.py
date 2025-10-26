@@ -8,66 +8,55 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
-    cursor = conn.cursor()
     
-    # Bus Incharge Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS bus_incharge (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            phone_number TEXT,
-            bus_number TEXT UNIQUE NOT NULL,
-            bus_password TEXT NOT NULL,
-            is_active BOOLEAN DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # Students Table (REMOVED roll_number)
-    cursor.execute('''
+    # Create students table with university_id
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
             university_id TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
             password TEXT NOT NULL,
-            bus_number TEXT NOT NULL,
-            photo_path TEXT,
-            face_encoding TEXT,
-            is_verified BOOLEAN DEFAULT 0,
-            is_active BOOLEAN DEFAULT 1,
+            bus_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (bus_id) REFERENCES buses (id)
+        )
+    ''')
+    
+    # Create buses table with route
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS buses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bus_number TEXT NOT NULL UNIQUE,
+            route TEXT,
+            incharge_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (incharge_id) REFERENCES incharges (id)
+        )
+    ''')
+    
+    # Create incharges table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS incharges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Attendance Table
-    cursor.execute('''
+    # Create attendance table
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            date DATE NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Present',
-            bus_number TEXT NOT NULL,
-            marked_by TEXT DEFAULT 'face_recognition',
-            confidence_score REAL,
-            marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students (id),
-            UNIQUE(student_id, date)
-        )
-    ''')
-    
-    # Face Recognition Logs
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS face_recognition_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             student_id INTEGER,
-            bus_number TEXT,
-            confidence_score REAL,
-            verification_result BOOLEAN,
-            error_message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students (id)
+            bus_id INTEGER,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students (id),
+            FOREIGN KEY (bus_id) REFERENCES buses (id)
         )
     ''')
     

@@ -3,82 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Profile - Bus Incharge</title>
+    <title>Edit Profile - Smart Bus Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="logo">🚌 Smart Bus Attendance</h1>
-            <p class="tagline">Bus Incharge Profile</p>
-        </header>
-
-        <!-- Edit Profile Form -->
+        <div class="header">
+            <h1>Edit Profile</h1>
+            <a href="{{ url_for('incharge_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+        
         <div class="form-container">
-            <h2>Edit Your Profile</h2>
-            <p style="text-align: center; color: #718096; margin-bottom: 30px;">Update your bus incharge information</p>
-            
-            <form action="{{ url_for('update_incharge_profile') }}" method="POST">
-                <!-- Personal Information -->
-                <div class="form-section">
-                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Personal Information</h3>
-                    
-                    <div class="form-group">
-                        <label for="name">Full Name *</label>
-                        <input type="text" id="name" name="name" value="{{ incharge.name }}" required placeholder="Enter your full name">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="email">Email Address *</label>
-                        <input type="email" id="email" name="email" value="{{ incharge.email }}" required placeholder="Enter your email">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="phone_number">Phone Number</label>
-                        <input type="tel" id="phone_number" name="phone_number" value="{{ incharge.phone_number or '' }}" placeholder="Enter your phone number">
-                    </div>
+            <form method="POST" action="{{ url_for('update_incharge_profile') }}">
+                <div class="form-group">
+                    <label for="name">Full Name:</label>
+                    <input type="text" id="name" name="name" value="{{ incharge.name }}" required>
                 </div>
-
-                <!-- Bus Information -->
-                <div class="form-section">
-                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Bus Information</h3>
-                    
-                    <div class="form-group">
-                        <label for="bus_number">Bus Number *</label>
-                        <input type="text" id="bus_number" name="bus_number" value="{{ incharge.bus_number }}" readonly style="background: #f7fafc;">
-                        <small style="color: #718096;">Bus number cannot be changed</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="bus_password">Bus Security Password *</label>
-                        <input type="password" id="bus_password" name="bus_password" value="{{ incharge.bus_password }}" required placeholder="Enter bus security password">
-                        <small style="color: #718096;">Special password for this bus number</small>
-                    </div>
+                
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" value="{{ incharge.email }}" required>
                 </div>
-
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 15px; margin-top: 30px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        💾 Save Changes
-                    </button>
-                    <a href="{{ url_for('incharge_dashboard') }}" class="btn btn-secondary" style="flex: 1; text-align: center;">
-                        ← Cancel
-                    </a>
-                </div>
+                
+                <button type="submit" class="btn btn-primary">Update Profile</button>
             </form>
         </div>
     </div>
-
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
 </body>
 </html>

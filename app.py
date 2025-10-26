@@ -326,6 +326,43 @@ def incharge_dashboard():
                          present_count=present_count,
                          current_date=date.today().isoformat())
 
+
+@app.route('/incharge_edit_profile')
+def incharge_edit_profile():
+    if 'incharge_id' not in session:
+        return redirect(url_for('incharge_login'))
+    
+    incharge_id = session['incharge_id']
+    
+    conn = get_db_connection()
+    incharge = conn.execute(
+        'SELECT * FROM incharges WHERE id = ?', (incharge_id,)
+    ).fetchone()
+    conn.close()
+    
+    return render_template('incharge_edit_profile.html', incharge=incharge)
+
+@app.route('/update_incharge_profile', methods=['POST'])
+def update_incharge_profile():
+    if 'incharge_id' not in session:
+        return redirect(url_for('incharge_login'))
+    
+    incharge_id = session['incharge_id']
+    name = request.form['name']
+    email = request.form['email']
+    
+    conn = get_db_connection()
+    conn.execute(
+        'UPDATE incharges SET name = ?, email = ? WHERE id = ?',
+        (name, email, incharge_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    session['incharge_name'] = name
+    flash('Profile updated successfully!', 'success')
+    return redirect(url_for('incharge_dashboard'))
+
 # Face Recognition Attendance
 @app.route('/mark_attendance', methods=['POST'])
 def mark_attendance():
@@ -476,4 +513,3 @@ def datetimeformat(value, format='%Y-%m-%d'):
 if __name__ == '__main__':
     app.run(debug=True)
 
-    
