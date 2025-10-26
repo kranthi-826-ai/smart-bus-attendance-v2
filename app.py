@@ -44,7 +44,7 @@ def init_db():
         )
     ''')
     
-    # Students Table (Only University ID - NO roll_number)
+    # Students Table (Only University ID)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,24 +76,10 @@ def init_db():
         )
     ''')
     
-    # Face Recognition Logs
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS face_recognition_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER,
-            bus_number TEXT,
-            confidence_score REAL,
-            verification_result BOOLEAN,
-            error_message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (student_id) REFERENCES students (id)
-        )
-    ''')
-    
     conn.commit()
     conn.close()
 
-# Initialize database FIRST
+# Initialize database
 init_db()
 
 # Routes
@@ -266,20 +252,27 @@ def incharge_login():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM bus_incharge WHERE email = ? AND password = ? AND is_active = 1', 
-                      (email, password))
-        incharge = cursor.fetchone()
-        conn.close()
         
-        if incharge:
-            session['incharge_id'] = incharge['id']
-            session['incharge_name'] = incharge['name']
-            session['bus_number'] = incharge['bus_number']
-            session['user_type'] = 'incharge'
-            flash('Login successful!', 'success')
-            return redirect(url_for('incharge_dashboard'))
-        else:
-            flash('Invalid email or password', 'error')
+        try:
+            cursor.execute('SELECT * FROM bus_incharge WHERE email = ? AND password = ? AND is_active = 1', 
+                          (email, password))
+            incharge = cursor.fetchone()
+            
+            if incharge:
+                session['incharge_id'] = incharge['id']
+                session['incharge_name'] = incharge['name']
+                session['bus_number'] = incharge['bus_number']
+                session['user_type'] = 'incharge'
+                flash('Login successful!', 'success')
+                return redirect(url_for('incharge_dashboard'))
+            else:
+                flash('Invalid email or password', 'error')
+                
+        except Exception as e:
+            flash('Database error. Please try again.', 'error')
+            print(f"Incharge login error: {str(e)}")
+        finally:
+            conn.close()
     
     return render_template('incharge_login.html')
 
@@ -364,11 +357,11 @@ def mark_attendance():
         ''', (bus_number,))
         students = cursor.fetchall()
         
-        # Simulate face recognition (replace with actual face recognition)
+        # Simulate face recognition
         best_match = None
-        best_confidence = 0.85  # Simulated high confidence
+        best_confidence = 0.85
         
-        # For demo, we'll just pick a random student
+        # For demo, pick a random student
         import random
         if students:
             best_match = random.choice(students)
@@ -401,12 +394,11 @@ def mark_attendance():
                 os.remove(temp_path)
             return jsonify({
                 'success': False, 
-                'message': 'No matching student found. Please ensure clear face visibility.',
+                'message': 'No matching student found.',
                 'confidence': 0.0
             })
             
     except Exception as e:
-        # Clean up temp file in case of error
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return jsonify({'success': False, 'message': f'Error processing attendance: {str(e)}'})
@@ -483,3 +475,5 @@ def datetimeformat(value, format='%Y-%m-%d'):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+    
