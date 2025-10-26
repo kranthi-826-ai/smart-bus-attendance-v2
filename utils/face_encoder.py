@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 
 class FaceEncoder:
-    def __init__(self):
+    def init(self):
         self.uploads_dir = "static/uploads/faces"
         os.makedirs(self.uploads_dir, exist_ok=True)
     
