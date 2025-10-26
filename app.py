@@ -44,12 +44,11 @@ def init_db():
         )
     ''')
     
-    # Students Table
+    # Students Table (Updated - removed roll_number)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            roll_number TEXT UNIQUE NOT NULL,
             university_id TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             bus_number TEXT NOT NULL,
@@ -94,8 +93,63 @@ def init_db():
     conn.commit()
     conn.close()
 
+def update_database_schema():
+    """Update database schema to match current requirements"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if university_id column exists in students table
+        cursor.execute("PRAGMA table_info(students)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'university_id' not in columns:
+            # Add university_id column and remove roll_number
+            cursor.execute('''
+                CREATE TABLE students_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    university_id TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    bus_number TEXT NOT NULL,
+                    photo_path TEXT,
+                    face_encoding TEXT,
+                    is_verified BOOLEAN DEFAULT 0,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Copy data from old table to new table
+            cursor.execute('''
+                INSERT INTO students_new (id, name, university_id, password, bus_number, photo_path, face_encoding, is_verified, is_active, created_at)
+                SELECT id, name, roll_number, password, bus_number, photo_path, face_encoding, is_verified, is_active, created_at 
+                FROM students
+            ''')
+            
+            # Drop old table and rename new one
+            cursor.execute('DROP TABLE students')
+            cursor.execute('ALTER TABLE students_new RENAME TO students')
+        
+        # Check if marked_at column exists in attendance table
+        cursor.execute("PRAGMA table_info(attendance)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'marked_at' not in columns:
+            cursor.execute('ALTER TABLE attendance ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+        
+        conn.commit()
+        print("Database schema updated successfully")
+        
+    except Exception as e:
+        print(f"Error updating database schema: {str(e)}")
+        conn.rollback()
+    finally:
+        conn.close()
+
 # Initialize database
 init_db()
+update_database_schema()  # Update schema after initialization
 
 # Routes
 @app.route('/')
@@ -169,20 +223,27 @@ def student_login():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM students WHERE university_id = ? AND password = ? AND is_active = 1', 
-                      (university_id, password))
-        student = cursor.fetchone()
-        conn.close()
         
-        if student:
-            session['student_id'] = student['id']
-            session['student_name'] = student['name']
-            session['student_university_id'] = student['university_id']
-            session['user_type'] = 'student'
-            flash('Login successful!', 'success')
-            return redirect(url_for('student_dashboard'))
-        else:
-            flash('Invalid University ID or password', 'error')
+        try:
+            cursor.execute('SELECT * FROM students WHERE university_id = ? AND password = ? AND is_active = 1', 
+                          (university_id, password))
+            student = cursor.fetchone()
+            
+            if student:
+                session['student_id'] = student['id']
+                session['student_name'] = student['name']
+                session['student_university_id'] = student['university_id']
+                session['user_type'] = 'student'
+                flash('Login successful!', 'success')
+                return redirect(url_for('student_dashboard'))
+            else:
+                flash('Invalid University ID or password', 'error')
+                
+        except Exception as e:
+            flash('Database error. Please try again.', 'error')
+            print(f"Login error: {str(e)}")
+        finally:
+            conn.close()
     
     return render_template('student_login.html')
 
@@ -194,16 +255,21 @@ def student_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Get attendance records for this student
-    cursor.execute('''
-        SELECT date, status, bus_number, marked_at 
-        FROM attendance 
-        WHERE student_id = ? 
-        ORDER BY date DESC LIMIT 10
-    ''', (session['student_id'],))
-    attendance_records = cursor.fetchall()
-    
-    conn.close()
+    try:
+        # Get attendance records for this student
+        cursor.execute('''
+            SELECT date, status, bus_number, marked_at 
+            FROM attendance 
+            WHERE student_id = ? 
+            ORDER BY date DESC LIMIT 10
+        ''', (session['student_id'],))
+        attendance_records = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Dashboard error: {str(e)}")
+        attendance_records = []
+    finally:
+        conn.close()
     
     return render_template('student_dashboard.html', 
                          student_name=session['student_name'],
@@ -286,7 +352,7 @@ def incharge_dashboard():
     try:
         # Get today's attendance records for this bus
         cursor.execute('''
-            SELECT s.name, s.roll_number, a.marked_at 
+            SELECT s.name, s.university_id, a.marked_at 
             FROM attendance a
             JOIN students s ON a.student_id = s.id
             WHERE a.date = DATE('now') AND a.bus_number = ?
@@ -350,14 +416,13 @@ def mark_attendance():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, name, roll_number, photo_path 
+            SELECT id, name, university_id, photo_path 
             FROM students 
             WHERE bus_number = ? AND is_active = 1
         ''', (bus_number,))
         students = cursor.fetchall()
         
         # Simulate face recognition (replace with actual face recognition)
-        # In production, you would use: compare_faces_live(temp_path, student_photo_path)
         best_match = None
         best_confidence = 0.85  # Simulated high confidence
         
@@ -366,38 +431,32 @@ def mark_attendance():
         if students:
             best_match = random.choice(students)
         
-        # Log the recognition attempt
-        cursor.execute('''
-            INSERT INTO face_recognition_logs 
-            (student_id, bus_number, confidence_score, verification_result, error_message)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (best_match['id'] if best_match else None, bus_number, best_confidence, bool(best_match), ''))
-        
         # If match found, mark attendance
         if best_match:
             cursor.execute('''
                 INSERT OR REPLACE INTO attendance 
-                (student_id, date, status, bus_number, confidence_score, marked_by)
-                VALUES (?, DATE('now'), 'Present', ?, ?, ?)
+                (student_id, date, status, bus_number, confidence_score, marked_by, marked_at)
+                VALUES (?, DATE('now'), 'Present', ?, ?, ?, CURRENT_TIMESTAMP)
             ''', (best_match['id'], bus_number, best_confidence, 'face_recognition'))
             
             conn.commit()
             conn.close()
             
             # Clean up temp file
-            os.remove(temp_path)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
             
             return jsonify({
                 'success': True, 
                 'message': f'Attendance marked successfully!',
                 'student_name': best_match['name'],
-                'roll_number': best_match['roll_number'],
+                'university_id': best_match['university_id'],
                 'confidence': best_confidence
             })
         else:
-            conn.commit()
             conn.close()
-            os.remove(temp_path)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
             return jsonify({
                 'success': False, 
                 'message': 'No matching student found. Please ensure clear face visibility.',
@@ -425,9 +484,8 @@ def download_attendance_excel():
     # Get today's attendance data
     cursor.execute('''
         SELECT 
-            s.roll_number as "Roll Number",
-            s.name as "Student Name", 
             s.university_id as "University ID",
+            s.name as "Student Name", 
             a.status as "Status",
             a.marked_at as "Time",
             a.confidence_score as "Confidence Score"
@@ -461,6 +519,7 @@ def download_attendance_excel():
     response.headers["Content-type"] = "text/csv"
     
     return response
+
 # Profile Management Routes
 @app.route('/edit_profile')
 def edit_profile():
@@ -520,6 +579,7 @@ def datetimeformat(value, format='%Y-%m-%d'):
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     return value.strftime(format)
+
 # Profile Update Routes
 @app.route('/update_profile', methods=['POST'])
 def update_profile():
@@ -539,7 +599,7 @@ def update_profile():
             photo = request.files['photo']
             if photo and photo.filename != '' and allowed_file(photo.filename):
                 # Generate new filename
-                filename = f"student_{session['student_roll_number']}_{uuid.uuid4().hex[:8]}.jpg"
+                filename = f"student_{session['student_university_id']}_{uuid.uuid4().hex[:8]}.jpg"
                 photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 photo.save(photo_path)
         
@@ -658,5 +718,6 @@ def update_incharge_password():
         return redirect(url_for('incharge_login'))
     
     return update_password()  # Reuse the same function
+
 if __name__ == '__main__':
     app.run(debug=True)
