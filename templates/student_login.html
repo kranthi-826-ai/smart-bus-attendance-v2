@@ -16,8 +16,8 @@
 
         <!-- Login Form -->
         <div class="form-container">
-            <h2>Welcome Back, Student!</h2>
-            <p style="text-align: center; color: #718096; margin-bottom: 30px;">Sign in to check your attendance</p>
+            <h2>Student Login</h2>
+            <p style="text-align: center; color: #718096; margin-bottom: 30px;">Sign in with your University ID and Password</p>
             
             <form action="{{ url_for('student_login') }}" method="POST">
                 <div class="form-group">
@@ -54,21 +54,5 @@
             </div>
         {% endif %}
     {% endwith %}
-
-    <script>
-        // Add subtle animation to form inputs
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('input');
-            inputs.forEach(input => {
-                input.addEventListener('focus', function() {
-                    this.parentElement.style.transform = 'scale(1.02)';
-                });
-                
-                input.addEventListener('blur', function() {
-                    this.parentElement.style.transform = 'scale(1)';
-                });
-            });
-        });
-    </script>
 </body>
 </html>

@@ -107,7 +107,6 @@ def index():
 def student_signup():
     if request.method == 'POST':
         name = request.form['name']
-        roll_number = request.form['roll_number']
         university_id = request.form['university_id']
         password = request.form['password']
         bus_number = request.form['bus_number']
@@ -124,15 +123,14 @@ def student_signup():
             return render_template('student_signup.html')
         
         if photo and allowed_file(photo.filename):
-            # Generate unique filename
-            filename = f"student_{roll_number}_{uuid.uuid4().hex[:8]}.jpg"
+            # Generate unique filename using university_id
+            filename = f"student_{university_id}_{uuid.uuid4().hex[:8]}.jpg"
             photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             
             # Save the photo
             photo.save(photo_path)
             
             # For now, store simulated face encoding
-            # In production, you would use: face_encoding = extract_face_encoding(photo_path)
             face_encoding = "simulated_encoding_for_demo"
             
             # Store in database
@@ -141,9 +139,9 @@ def student_signup():
             
             try:
                 cursor.execute('''
-                    INSERT INTO students (name, roll_number, university_id, password, bus_number, photo_path, face_encoding)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (name, roll_number, university_id, password, bus_number, photo_path, face_encoding))
+                    INSERT INTO students (name, university_id, password, bus_number, photo_path, face_encoding)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, university_id, password, bus_number, photo_path, face_encoding))
                 
                 conn.commit()
                 flash('Student registered successfully! You can now login.', 'success')
@@ -151,15 +149,11 @@ def student_signup():
                 
             except sqlite3.IntegrityError as e:
                 conn.rollback()
-                if 'roll_number' in str(e):
-                    flash('Roll number already exists', 'error')
-                elif 'university_id' in str(e):
-                    flash('University ID already exists', 'error')
-                else:
-                    flash('Error registering student', 'error')
+                flash('University ID already exists. Please use a different University ID.', 'error')
             except Exception as e:
                 conn.rollback()
-                flash('Error registering student', 'error')
+                flash('Error registering student. Please try again.', 'error')
+                print(f"Error: {str(e)}")
             finally:
                 conn.close()
         else:
@@ -183,7 +177,7 @@ def student_login():
         if student:
             session['student_id'] = student['id']
             session['student_name'] = student['name']
-            session['student_roll_number'] = student['roll_number']
+            session['student_university_id'] = student['university_id']
             session['user_type'] = 'student'
             flash('Login successful!', 'success')
             return redirect(url_for('student_dashboard'))
@@ -289,30 +283,39 @@ def incharge_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Get today's attendance records for this bus
-    cursor.execute('''
-        SELECT s.name, s.roll_number, a.marked_at 
-        FROM attendance a
-        JOIN students s ON a.student_id = s.id
-        WHERE a.date = DATE('now') AND a.bus_number = ?
-        ORDER BY a.marked_at DESC
-    ''', (session['bus_number'],))
-    attendance_records = cursor.fetchall()
-    
-    # Get total students in this bus
-    cursor.execute('SELECT COUNT(*) as total FROM students WHERE bus_number = ? AND is_active = 1', 
-                  (session['bus_number'],))
-    total_students = cursor.fetchone()['total']
-    
-    # Get today's present count
-    cursor.execute('''
-        SELECT COUNT(DISTINCT student_id) as present_count 
-        FROM attendance 
-        WHERE date = DATE('now') AND bus_number = ?
-    ''', (session['bus_number'],))
-    present_count = cursor.fetchone()['present_count']
-    
-    conn.close()
+    try:
+        # Get today's attendance records for this bus
+        cursor.execute('''
+            SELECT s.name, s.roll_number, a.marked_at 
+            FROM attendance a
+            JOIN students s ON a.student_id = s.id
+            WHERE a.date = DATE('now') AND a.bus_number = ?
+            ORDER BY a.marked_at DESC
+        ''', (session['bus_number'],))
+        attendance_records = cursor.fetchall()
+        
+        # Get total students in this bus
+        cursor.execute('SELECT COUNT(*) as total FROM students WHERE bus_number = ? AND is_active = 1', 
+                      (session['bus_number'],))
+        total_result = cursor.fetchone()
+        total_students = total_result['total'] if total_result else 0
+        
+        # Get today's present count
+        cursor.execute('''
+            SELECT COUNT(DISTINCT student_id) as present_count 
+            FROM attendance 
+            WHERE date = DATE('now') AND bus_number = ?
+        ''', (session['bus_number'],))
+        present_result = cursor.fetchone()
+        present_count = present_result['present_count'] if present_result else 0
+        
+    except Exception as e:
+        print(f"Database error in incharge_dashboard: {str(e)}")
+        attendance_records = []
+        total_students = 0
+        present_count = 0
+    finally:
+        conn.close()
     
     return render_template('incharge_dashboard.html',
                          incharge_name=session['incharge_name'],
