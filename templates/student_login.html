@@ -8,55 +8,67 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎓 Student Login</h1>
-            <p>Check your attendance status</p>
-        </div>
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">🚌 Smart Bus Attendance</h1>
+            <p class="tagline">Student Login</p>
+        </header>
 
+        <!-- Login Form -->
         <div class="form-container">
-            <div class="form-box">
-                <div class="form-title">
-                    <h2>Welcome Back, Student!</h2>
-                    <p>Enter your roll number to continue</p>
+            <h2>Welcome Back, Student!</h2>
+            <p style="text-align: center; color: #718096; margin-bottom: 30px;">Sign in to check your attendance</p>
+            
+            <form action="{{ url_for('student_login') }}" method="POST">
+                <div class="form-group">
+                    <label for="university_id">University ID *</label>
+                    <input type="text" id="university_id" name="university_id" required 
+                           placeholder="Enter your university ID" autocomplete="username">
                 </div>
 
-                {% if message %}
-                <div class="success-message">
-                    {{ message }}
-                </div>
-                {% endif %}
-
-                <form action="{{ url_for('student_login') }}" method="POST">
-                    <div class="form-group">
-                        <label class="form-label">University Roll Number</label>
-                        <input type="text" class="form-input" name="roll_number" placeholder="Enter your roll number" required>
-                    </div>
-
-                     <!-- Find the form and ADD this code after the roll number field -->
-<div class="form-group">
-    <label class="form-label">Password</label>
-    <input type="password" class="form-input" name="password" placeholder="Enter your password" required>
-</div>
-                    
-
-                    <button type="submit" class="btn btn-primary btn-full">Login</button>
-
-                    {% if error %}
-                    <div class="error-message">
-                        {{ error }}
-                    </div>
-                    {% endif %}
-                </form>
-
-                <div class="link-text">
-                    <p>New student? <a href="{{ url_for('student_signup') }}">Sign up here</a></p>
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Enter your password" autocomplete="current-password">
                 </div>
 
-                <div class="link-text">
-                    <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
-                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1.1rem; margin-top: 10px;">
+                    Sign In to Dashboard
+                </button>
+            </form>
+
+            <div class="form-options">
+                <p>Don't have an account? <a href="{{ url_for('student_signup') }}">Sign up here</a></p>
+                <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
             </div>
         </div>
     </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        // Add subtle animation to form inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'scale(1.02)';
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.parentElement.style.transform = 'scale(1)';
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -4,59 +4,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Bus Attendance System</title>
-    <!-- FLASK SYNTAX - for Render.com -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🚍 Smart Bus Attendance System</h1>
-            <p>Automated face recognition attendance for school/college buses</p>
-        </div>
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">🚌 Smart Bus Attendance</h1>
+            <p class="tagline">Expertly Connecting Students and Campus</p>
+        </header>
 
-        <div class="main-content">
-            <div class="welcome-box">
-                <h2>Welcome!</h2>
-                <p>Please select your role to continue</p>
+        <!-- Main Hero Section -->
+        <div class="hero-section">
+            <div class="hero-content">
+                <h2>Welcome to Smart Bus Attendance System</h2>
+                <p>Automated face recognition attendance for college buses</p>
                 
-                <div class="button-group">
-                    <!-- FLASK SYNTAX - for Render.com -->
-                    <a href="{{ url_for('incharge_signup') }}" class="btn btn-primary">
-                        Bus Incharge Sign Up
-                    </a>
-                    <a href="{{ url_for('incharge_login') }}" class="btn btn-secondary">
-                        Bus Incharge Login
-                    </a>
-                    <a href="{{ url_for('student_signup') }}" class="btn btn-primary">
-                        Student Sign Up
-                    </a>
-                    <a href="{{ url_for('student_login') }}" class="btn btn-secondary">
-                        Student Login
-                    </a>
+                <!-- Login Options -->
+                <div class="login-options">
+                    <div class="option-card">
+                        <h3>Student</h3>
+                        <p>Access your attendance and profile</p>
+                        <div class="button-group">
+                            <a href="{{ url_for('student_login') }}" class="btn btn-primary">Student Login</a>
+                            <a href="{{ url_for('student_signup') }}" class="btn btn-secondary">Student Sign Up</a>
+                        </div>
+                    </div>
+                    
+                    <div class="option-card">
+                        <h3>Bus Incharge</h3>
+                        <p>Manage attendance and reports</p>
+                        <div class="button-group">
+                            <a href="{{ url_for('incharge_login') }}" class="btn btn-primary">Incharge Login</a>
+                            <a href="{{ url_for('incharge_signup') }}" class="btn btn-secondary">Incharge Sign Up</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="features">
-            <h3>Features:</h3>
-            <div class="feature-list">
-                <div class="feature-item">
-                    <span class="icon">📷</span>
+        <!-- Features Section -->
+        <div class="features-section">
+            <h3>Why Choose Our System?</h3>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">👤</div>
                     <h4>Face Recognition</h4>
                     <p>Automated attendance using AI face detection</p>
                 </div>
-                <div class="feature-item">
-                    <span class="icon">⏰</span>
-                    <h4>Real-time Tracking</h4>
-                    <p>Live attendance updates and monitoring</p>
+                <div class="feature">
+                    <div class="feature-icon">📱</div>
+                    <h4>Real-time Updates</h4>
+                    <p>Instant attendance notifications for students</p>
                 </div>
-                <div class="feature-item">
-                    <span class="icon">📊</span>
-                    <h4>Attendance Reports</h4>
-                    <p>Download detailed reports for administration</p>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h4>Excel Reports</h4>
+                    <p>Download attendance sheets for teachers</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

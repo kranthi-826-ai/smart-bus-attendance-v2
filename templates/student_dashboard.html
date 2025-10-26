@@ -3,74 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard</title>
+    <title>Student Dashboard - Smart Bus Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h2>Student Dashboard</h2>
-            <!-- Round Profile Icon -->
-            <div class="profile-section">
-                <div class="profile-icon" onclick="toggleProfileMenu()">
-                    👤
+        <!-- Header with Profile -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-info">
+                    <h1>Student Dashboard</h1>
+                    <p>Welcome back, <strong>{{ student_name }}</strong>! 👋</p>
                 </div>
-                <div id="profile-menu" class="profile-menu">
-                    <a href="{{ url_for('edit_profile') }}">Edit Profile</a>
-                    <a href="{{ url_for('change_password') }}">Change Password</a>
-                    <a href="{{ url_for('logout') }}">Logout</a>
+                
+                <!-- Profile Icon -->
+                <div class="profile-section">
+                    <div class="profile-icon" onclick="toggleProfileMenu()">
+                        👤
+                    </div>
+                    <div id="profile-menu" class="profile-menu">
+                        <a href="{{ url_for('edit_profile') }}" class="profile-menu-item">
+                            <span>✏️</span> Edit Profile
+                        </a>
+                        <a href="{{ url_for('change_password') }}" class="profile-menu-item">
+                            <span>🔒</span> Change Password
+                        </a>
+                        <div class="profile-menu-divider"></div>
+                        <a href="{{ url_for('logout') }}" class="profile-menu-item logout">
+                            <span>🚪</span> Logout
+                        </a>
+                    </div>
                 </div>
             </div>
+        </header>
+
+        <!-- Today's Attendance Status -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>📊 Today's Attendance Status</h2>
+                <span class="last-updated">Live Updates</span>
+            </div>
+            
+            <div class="attendance-status">
+                {% set today_status = namespace(found=false) %}
+                {% for record in attendance_records %}
+                    {% if record.date == current_date %}
+                        <div class="status-card present">
+                            <div class="status-icon">✅</div>
+                            <div class="status-content">
+                                <h3>Present in Bus</h3>
+                                <p>Your attendance is marked for today</p>
+                                <span class="status-time">Bus: {{ record.bus_number }} • {{ record.marked_at if record.marked_at else 'Today' }}</span>
+                            </div>
+                        </div>
+                        {% set today_status.found = true %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if not today_status.found %}
+                    <div class="status-card absent">
+                        <div class="status-icon">⏳</div>
+                        <div class="status-content">
+                            <h3>Attendance Pending</h3>
+                            <p>Your attendance hasn't been marked yet today</p>
+                            <span class="status-time">Bus will scan your face when boarding</span>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-        
-        <p>Welcome, <strong>{{ student_name }}</strong>!</p>
-        
-        <div class="attendance-section">
-            <h3>Your Recent Attendance</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Bus Number</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if attendance_records %}
+
+        <!-- Recent Attendance History -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>📅 Recent Attendance History</h2>
+                <span class="view-all">Last 10 days</span>
+            </div>
+            
+            <div class="attendance-table-container">
+                {% if attendance_records %}
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Status</th>
+                            <th>Bus Number</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         {% for record in attendance_records %}
                         <tr>
                             <td>{{ record.date }}</td>
-                            <td class="status-{{ record.status.lower() }}">{{ record.status }}</td>
+                            <td>{{ record.date | datetimeformat('%A') }}</td>
+                            <td>
+                                <span class="status-badge status-{{ record.status.lower() }}">
+                                    {{ record.status }}
+                                </span>
+                            </td>
                             <td>{{ record.bus_number }}</td>
+                            <td>{{ record.marked_at if record.marked_at else '--' }}</td>
                         </tr>
                         {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="3">No attendance records found</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <h3>No Attendance Records</h3>
+                    <p>Your attendance will appear here once marked by bus incharge</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        
-        <a href="{{ url_for('logout') }}">Logout</a>
+
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-content">
+                    <h3>This Month</h3>
+                    <p class="stat-number">Calculating...</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3>Present Days</h3>
+                    <p class="stat-number">Calculating...</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-content">
+                    <h3>Attendance %</h3>
+                    <p class="stat-number">Calculating...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <script>
+        // Profile Menu Toggle
         function toggleProfileMenu() {
             const menu = document.getElementById('profile-menu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            menu.classList.toggle('active');
         }
-        
-        // Close menu when clicking outside
-        window.onclick = function(event) {
-            if (!event.target.matches('.profile-icon')) {
-                const menu = document.getElementById('profile-menu');
-                if (menu.style.display === 'block') {
-                    menu.style.display = 'none';
-                }
+
+        // Close profile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const profileSection = document.querySelector('.profile-section');
+            const profileMenu = document.getElementById('profile-menu');
+            
+            if (!profileSection.contains(event.target)) {
+                profileMenu.classList.remove('active');
             }
-        }
+        });
+
+        // Auto-refresh attendance status every 30 seconds
+        setInterval(() => {
+            const statusCard = document.querySelector('.status-card');
+            if (statusCard) {
+                statusCard.style.animation = 'pulse 2s infinite';
+                setTimeout(() => {
+                    statusCard.style.animation = '';
+                }, 2000);
+            }
+        }, 30000);
     </script>
 </body>
 </html>

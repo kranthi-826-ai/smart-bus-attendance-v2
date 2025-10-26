@@ -8,76 +8,185 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎓 Student Registration</h1>
-            <p>Join your bus attendance system</p>
-        </div>
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">🚌 Smart Bus Attendance</h1>
+            <p class="tagline">Student Registration</p>
+        </header>
 
+        <!-- Signup Form -->
         <div class="form-container">
-            <div class="form-box">
-                <div class="form-title">
-                    <h2>Create Student Account</h2>
-                    <p>Enter your details to register</p>
+            <h2>Create Student Account</h2>
+            <p style="text-align: center; color: #718096; margin-bottom: 30px;">Register with your university details</p>
+            
+            <form action="{{ url_for('student_signup') }}" method="POST" enctype="multipart/form-data">
+                <!-- Personal Information -->
+                <div class="form-section">
+                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Personal Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="name">Full Name *</label>
+                        <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="roll_number">Roll Number *</label>
+                        <input type="text" id="roll_number" name="roll_number" required placeholder="Enter your roll number">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="university_id">University ID *</label>
+                        <input type="text" id="university_id" name="university_id" required placeholder="Enter your university ID">
+                    </div>
                 </div>
 
-                <form action="{{ url_for('student_signup') }}" method="POST">
+                <!-- Account Security -->
+                <div class="form-section">
+                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Account Security</h3>
+                    
                     <div class="form-group">
-                        <label class="form-label">Full Name</label>
-                        <input type="text" class="form-input" name="name" placeholder="Enter your full name" required>
+                        <label for="password">Password *</label>
+                        <input type="password" id="password" name="password" required placeholder="Create your password">
+                        <small style="color: #718096; font-size: 0.9rem;">This password will be used for login</small>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">University Roll Number</label>
-                        <input type="text" class="form-input" name="roll_number" placeholder="e.g., 2420030539" required>
+                        <label for="confirm_password">Confirm Password *</label>
+                        <input type="password" id="confirm_password" name="confirm_password" required placeholder="Confirm your password">
                     </div>
+                </div>
 
+                <!-- Bus Information -->
+                <div class="form-section">
+                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Bus Information</h3>
+                    
                     <div class="form-group">
-                        <label class="form-label">Password</label>
-                        <input type="password" class="form-input" name="password" placeholder="Create a password" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Select Your Bus</label>
-                        <select class="form-select" name="bus_number" required>
-                            <option value="">-- Select Bus Number --</option>
-                            <option value="BUS001">BUS 001</option>
-                            <option value="BUS002">BUS 002</option>
-                            <option value="BUS003">BUS 003</option>
+                        <label for="bus_number">Select Your Bus Number *</label>
+                        <select id="bus_number" name="bus_number" required>
+                            <option value="">Choose your bus</option>
+                            <option value="BUS001">Bus 001</option>
+                            <option value="BUS002">Bus 002</option>
+                            <option value="BUS003">Bus 003</option>
+                            <option value="BUS004">Bus 004</option>
+                            <option value="BUS005">Bus 005</option>
+                            <option value="BUS006">Bus 006</option>
+                            <option value="BUS007">Bus 007</option>
+                            <option value="BUS008">Bus 008</option>
+                            <option value="BUS009">Bus 009</option>
+                            <option value="BUS010">Bus 010</option>
                         </select>
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Bus Password</label>
-                        <input type="password" class="form-input" name="bus_password" placeholder="Enter your bus password" required>
-                        <small style="color: #666;">*Get this from your bus incharge or transport manager</small>
-                    </div>
-
-
+                <!-- Photo Upload -->
+                <div class="form-section">
+                    <h3 style="color: #2d3748; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">Face Recognition Photo</h3>
                     
-<div class="form-group">
-    <label class="form-label">Upload Your Photo</label>
-    <input type="file" class="form-input" name="student_photo" accept="image/*" required>
-    <small style="color: #666;">*Please upload a clear front-facing photo for face recognition</small>
-</div>
-
-                    <button type="submit" class="btn btn-primary btn-full">Register Now</button>
-
-                    {% if error %}
-                    <div class="error-message">
-                        {{ error }}
+                    <div class="form-group">
+                        <label for="photo">Upload Your Photo *</label>
+                        <div class="file-upload-area" id="uploadArea">
+                            <div class="upload-content">
+                                <div class="upload-icon">📷</div>
+                                <p>Click to upload your photo</p>
+                                <small>JPG, JPEG, or PNG format. Clear face photo required for attendance.</small>
+                            </div>
+                            <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png" required style="display: none;">
+                        </div>
+                        <div id="previewContainer" style="display: none; margin-top: 15px;">
+                            <img id="previewImage" style="max-width: 200px; border-radius: 10px; border: 2px solid #e2e8f0;">
+                        </div>
                     </div>
-                    {% endif %}
-                </form>
-
-                <div class="link-text">
-                    <p>Already registered? <a href="{{ url_for('student_login') }}">Login here</a></p>
                 </div>
 
-                <div class="link-text">
-                    <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
-                </div>
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 1.1rem;">
+                    Create Student Account
+                </button>
+            </form>
+
+            <div class="form-options">
+                <p>Already have an account? <a href="{{ url_for('student_login') }}">Login here</a></p>
+                <p><a href="{{ url_for('index') }}">← Back to Home</a></p>
             </div>
         </div>
     </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        // Photo upload preview functionality
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('photo');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.backgroundColor = '#f0f4ff';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#e2e8f0';
+            uploadArea.style.backgroundColor = '#f8fafc';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (file && (file.type === 'image/jpeg' || file.type === 'image/jpg' || file.type === 'image/png')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    uploadArea.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please upload a valid JPG, JPEG, or PNG image.');
+            }
+        }
+
+        // Password confirmation validation
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        function validatePassword() {
+            if (password.value !== confirmPassword.value) {
+                confirmPassword.setCustomValidity("Passwords don't match");
+            } else {
+                confirmPassword.setCustomValidity('');
+            }
+        }
+
+        password.addEventListener('change', validatePassword);
+        confirmPassword.addEventListener('keyup', validatePassword);
+    </script>
 </body>
 </html>

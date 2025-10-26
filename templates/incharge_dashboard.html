@@ -3,119 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Incharge Dashboard</title>
+    <title>Bus Incharge Dashboard - Smart Bus Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h2>Bus Incharge Dashboard</h2>
-        <p>Welcome, {{ incharge_name }} | Bus: {{ bus_number }}</p>
-        
-        <!-- Camera Section for Face Scanning -->
-        <div class="camera-section">
-            <h3>Mark Attendance with Face Recognition</h3>
-            
-            <div class="camera-container">
-                <video id="video" width="400" height="300" autoplay></video>
-                <canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+        <!-- Header with Profile -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-info">
+                    <h1>Bus Incharge Dashboard</h1>
+                    <p>Welcome, <strong>{{ incharge_name }}</strong> | Bus: <strong>{{ bus_number }}</strong> 🚌</p>
+                </div>
+                
+                <!-- Profile Icon -->
+                <div class="profile-section">
+                    <div class="profile-icon" onclick="toggleProfileMenu()">
+                        👤
+                    </div>
+                    <div id="profile-menu" class="profile-menu">
+                        <a href="{{ url_for('incharge_edit_profile') }}" class="profile-menu-item">
+                            <span>✏️</span> Edit Profile
+                        </a>
+                        <a href="{{ url_for('incharge_change_password') }}" class="profile-menu-item">
+                            <span>🔒</span> Change Password
+                        </a>
+                        <div class="profile-menu-divider"></div>
+                        <a href="{{ url_for('download_attendance') }}" class="profile-menu-item">
+                            <span>📥</span> Download Excel
+                        </a>
+                        <div class="profile-menu-divider"></div>
+                        <a href="{{ url_for('logout') }}" class="profile-menu-item logout">
+                            <span>🚪</span> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Face Scanning Section -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>📷 Face Recognition Attendance</h2>
+                <span class="last-updated">Live Camera</span>
             </div>
             
-            <div class="camera-controls">
-                <button id="capture-btn" onclick="capturePhoto()">Capture & Mark Attendance</button>
-                <button id="retake-btn" onclick="retakePhoto()" style="display:none;">Retake Photo</button>
+            <div class="scanning-section">
+                <div class="camera-container">
+                    <div class="camera-preview" id="cameraPreview">
+                        <video id="video" width="100%" height="300" autoplay playsinline></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <div class="camera-overlay">
+                            <div class="face-guide"></div>
+                            <p>Position face within frame</p>
+                        </div>
+                    </div>
+                    
+                    <div class="camera-controls">
+                        <button id="startCamera" class="btn btn-primary" onclick="startCamera()">
+                            📸 Start Camera
+                        </button>
+                        <button id="captureBtn" class="btn btn-success" onclick="captureFace()" style="display: none;">
+                            ✅ Scan & Mark Attendance
+                        </button>
+                        <button id="retakeBtn" class="btn btn-secondary" onclick="retakePhoto()" style="display: none;">
             </div>
-            
-            <div id="result-message"></div>
         </div>
 
-        <!-- Today's Attendance Records -->
-        <div class="attendance-records">
-            <h3>Today's Attendance</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Student Name</th>
-                        <th>Roll Number</th>
-                        <th>Status</th>
-                        <th>Time</th>
-                    </tr>
-                </thead>
-                <tbody id="attendance-table">
-                    {% for record in attendance_records %}
-                    <tr>
-                        <td>{{ record.name }}</td>
-                        <td>{{ record.roll_number }}</td>
-                        <td>{{ record.status }}</td>
-                        <td>{{ record.marked_at }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Today's Attendance Summary -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>📊 Today's Attendance Summary</h2>
+                <span class="view-all">{{ current_date }}</span>
+            </div>
+            
+            <div class="attendance-stats">
+                <div class="stat-card-large">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h3>Total Students</h3>
+                        <p class="stat-number" id="totalStudents">0</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card-large">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3>Present Today</h3>
+                        <p class="stat-number present-count" id="presentCount">0</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card-large">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-content">
+                        <h3>Remaining</h3>
+                        <p class="stat-number" id="remainingCount">0</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <a href="{{ url_for('logout') }}">Logout</a>
+
+        <!-- Recent Attendance Records -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>🕒 Recent Scans</h2>
+                <button class="btn btn-outline" onclick="downloadExcel()">📥 Download Excel</button>
+            </div>
+            
+            <div class="attendance-table-container">
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Roll Number</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>{{ record.name }}</td>
+                            <td>{{ record.roll_number }}</td>
+                            <td>
+                                <span class="status-badge status-present">Present</span>
+                            </td>
+                            <td>{{ record.marked_at }}</td>
+                            <td>
+                                <span class="confidence-level high">98%</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="action-btn" onclick="downloadExcel()">
+                <span>📥</span>
+                Download Excel Report
+            </button>
+            <button class="action-btn" onclick="clearTodayAttendance()">
+                <span>🔄</span>
+                Reset Today's Data
+            </button>
+            <button class="action-btn" onclick="viewAllStudents()">
+                <span>👥</span>
+                View All Students
+            </button>
+        </div>
     </div>
 
+    <!-- Scan Result Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Attendance Result</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Result content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <script>
-        // Camera access
+        // Camera and Face Scanning Functionality
+        let stream = null;
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
-        
-        // Access camera
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'environment'
+                    } 
+                });
                 video.srcObject = stream;
-            })
-            .catch(err => {
-                console.error("Error accessing camera: ", err);
-                document.getElementById('result-message').innerHTML = 
-                    '<div class="error">Camera access denied. Please allow camera permissions.</div>';
-            });
-        
-        function capturePhoto() {
+                document.getElementById('startCamera').style.display = 'none';
+                document.getElementById('captureBtn').style.display = 'inline-block';
+            } catch (err) {
+                showResult('error', 'Camera access denied. Please allow camera permissions.');
+            }
+        }
+
+        function captureFace() {
             // Draw video frame to canvas
-            context.drawImage(video, 0, 0, 400, 300);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             // Convert to blob and send to server
             canvas.toBlob(blob => {
-                const formData = new FormData();
-                formData.append('photo', blob, 'capture.jpg');
-                formData.append('bus_number', '{{ bus_number }}');
-                
-                // Show loading
-                document.getElementById('result-message').innerHTML = 
-                    '<div class="info">Processing face recognition...</div>';
-                
-                // Send to server for face recognition
-                fetch('/mark_attendance', {
+                markAttendance(blob);
+            }, 'image/jpeg', 0.8);
+        }
+
+        function retakePhoto() {
+            document.getElementById('captureBtn').style.display = 'inline-block';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('scanResult').style.display = 'none';
+        }
+
+        async function markAttendance(photoBlob) {
+            const formData = new FormData();
+            formData.append('photo', photoBlob, 'face_scan.jpg');
+            formData.append('bus_number', '{{ bus_number }}');
+
+            showResult('info', '🔍 Scanning face... Please wait');
+
+            try {
+                const response = await fetch('/mark_attendance', {
                     method: 'POST',
                     body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('result-message').innerHTML = 
-                            `<div class="success">✅ ${data.message}</div>`;
-                        // Refresh attendance records
-                        setTimeout(() => location.reload(), 2000);
-                    } else {
-                        document.getElementById('result-message').innerHTML = 
-                            `<div class="error">❌ ${data.message}</div>`;
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('result-message').innerHTML = 
-                        '<div class="error">Error marking attendance</div>';
                 });
-            }, 'image/jpeg');
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('success', 
+                        `✅ Attendance marked for ${result.student_name} (${result.roll_number})<br>
+                         <small>Confidence: ${(result.confidence * 100).toFixed(1)}%</small>`
+                    );
+                    updateAttendanceTable(result);
+                    updateStats();
+                } else {
+                    showResult('error', 
+                        `❌ ${result.message}<br>
+                         <small>Please ensure clear face visibility</small>`
+                    );
+                }
+            } catch (error) {
+                showResult('error', 'Network error. Please try again.');
+            }
         }
-        
-        function retakePhoto() {
-            document.getElementById('capture-btn').style.display = 'block';
-            document.getElementById('retake-btn').style.display = 'none';
-            document.getElementById('result-message').innerHTML = '';
+
+        function showResult(type, message) {
+            const modal = document.getElementById('resultModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalBody.innerHTML = `
+                <div class="result-${type}">
+                    <div class="result-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : '🔍'}</div>
+                    <div class="result-message">${message}</div>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 3000);
+            }
         }
+
+        function closeModal() {
+            document.getElementById('resultModal').style.display = 'none';
+        }
+
+        function updateAttendanceTable(result) {
+            const tbody = document.getElementById('attendanceTableBody');
+            const now = new Date().toLocaleTimeString();
+            
+            const newRow = `
+                <tr>
+                    <td>${result.student_name}</td>
+                    <td>${result.roll_number}</td>
+                    <td><span class="status-badge status-present">Present</span></td>
+                    <td>${now}</td>
+                    <td><span class="confidence-level high">${(result.confidence * 100).toFixed(1)}%</span></td>
+                </tr>
+            `;
+            
+            tbody.insertAdjacentHTML('afterbegin', newRow);
+        }
+
+        function updateStats() {
+            // Update present count
+            const presentCount = document.querySelectorAll('.status-present').length;
+            document.getElementById('presentCount').textContent = presentCount;
+            
+            // Update remaining count (you would get total from server)
+            const totalStudents = 45; // This should come from server
+            document.getElementById('remainingCount').textContent = totalStudents - presentCount;
+        }
+
+        function downloadExcel() {
+            showResult('info', '📥 Preparing Excel download...');
+            // This would call your backend Excel generation endpoint
+            window.location.href = '/download_attendance_excel';
+        }
+
+        // Initialize stats on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStats();
+        });
+
+        // Profile menu functionality (same as student dashboard)
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profile-menu');
+            menu.classList.toggle('active');
+        }
+
+        document.addEventListener('click', function(event) {
+            const profileSection = document.querySelector('.profile-section');
+            const profileMenu = document.getElementById('profile-menu');
+            
+            if (!profileSection.contains(event.target)) {
+                profileMenu.classList.remove('active');
+            }
+        });
     </script>
 </body>
 </html>
