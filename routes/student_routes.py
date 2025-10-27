@@ -21,11 +21,11 @@ def signup():
             name = data.get('name')
             bus_number = int(data.get('bus_number'))
             bus_password = data.get('bus_password')
-            face_image_data = data.get('face_image_data')  # Base64 image from camera
+            face_image_data = data.get('face_image_data')  # Base64 from camera
             
             # Validate university ID format (2420030___ - 10 digits)
             if not university_id.isdigit() or len(university_id) != 10:
-                return jsonify({'success': False, 'message': 'Invalid University ID format. Must be 10 digits.'})
+                return jsonify({'success': False, 'message': 'Invalid University ID format. Must be 10 digits starting with 24200.'})
             
             # Check if university ID already exists
             conn = db.get_connection()
@@ -41,11 +41,11 @@ def signup():
             
             if not bus_data:
                 conn.close()
-                return jsonify({'success': False, 'message': 'Invalid bus number'})
+                return jsonify({'success': False, 'message': f'Bus number {bus_number} not found. Please check with your bus incharge.'})
             
             if bus_data[0] != bus_password:
                 conn.close()
-                return jsonify({'success': False, 'message': 'Invalid bus password'})
+                return jsonify({'success': False, 'message': 'Invalid bus password. Please ask your bus incharge for the correct password.'})
             
             # Process face image from camera
             if not face_image_data:
@@ -60,7 +60,7 @@ def signup():
                 image_bytes = base64.b64decode(face_image_data)
                 
                 # Save temporary image
-                temp_filename = f"temp_face_{university_id}_{uuid.uuid4().hex[:8]}.jpg"
+                temp_filename = f"temp_face_{university_id}.jpg"
                 temp_image_path = os.path.join("static/uploads/faces", temp_filename)
                 
                 # Ensure directory exists
@@ -69,7 +69,7 @@ def signup():
                 with open(temp_image_path, 'wb') as f:
                     f.write(image_bytes)
                 
-                # Extract face encoding
+                # Extract face encoding using dlib
                 face_encoding, message = face_encoder.capture_face_encoding(temp_image_path)
                 
                 # Remove temp image
@@ -96,7 +96,7 @@ def signup():
             
             return jsonify({
                 'success': True, 
-                'message': 'Student registered successfully with face encoding! You can now login.'
+                'message': f'Student {name} registered successfully! Face encoding stored. You can now login.'
             })
             
         except Exception as e:

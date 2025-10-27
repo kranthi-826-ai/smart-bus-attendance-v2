@@ -6,4 +6,4 @@ opencv-python==4.8.1.78
 Pillow==10.0.0
 Werkzeug==2.3.7
 requests==2.31.0
-gunicorn==21.2.0
+cmake==3.27.7

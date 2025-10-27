@@ -25,21 +25,28 @@ def scan_attendance():
 @attendance_bp.route('/process-attendance', methods=['POST'])
 def process_attendance():
     if 'incharge_id' not in session or session.get('role') != 'incharge':
-        return jsonify({'success': False, 'message': 'Unauthorized'})
+        return jsonify({'success': False, 'message': 'Unauthorized access'})
     
     try:
         data = request.json
         image_data = data.get('image')
         bus_number = session.get('bus_number')
         
+        if not image_data:
+            return jsonify({'success': False, 'message': 'No image data received'})
+        
         # Convert base64 image to file
         image_data = image_data.split(',')[1]  # Remove data:image/jpeg;base64,
         image_bytes = base64.b64decode(image_data)
         
-        # Save temporary image
-        temp_path = f"static/uploads/temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        # Save temporary image with better quality
+        temp_path = f"static/uploads/temp_attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        os.makedirs("static/uploads", exist_ok=True)
+        
         with open(temp_path, 'wb') as f:
             f.write(image_bytes)
+        
+        print(f"📸 Saved temporary image: {temp_path}")
         
         # Get all students from this bus
         conn = db.get_connection()
@@ -47,7 +54,7 @@ def process_attendance():
         cursor.execute('''
             SELECT university_id, name, face_encoding 
             FROM students 
-            WHERE bus_number = ?
+            WHERE bus_number = ? AND face_encoding IS NOT NULL
         ''', (bus_number,))
         
         students = cursor.fetchall()
@@ -55,27 +62,40 @@ def process_attendance():
         
         if not students:
             os.remove(temp_path)
-            return jsonify({'success': False, 'message': 'No students found in this bus'})
+            return jsonify({'success': False, 'message': f'No students with face data found in bus {bus_number}'})
         
-        # Find matching student
+        print(f"🔍 Checking {len(students)} students in bus {bus_number}")
+        
+        # Find matching student using dlib
         matched_student = None
-        confidence = 0
+        match_details = []
         
         for student in students:
             university_id, name, stored_encoding = student
             
-            # Compare faces
+            if not stored_encoding:
+                match_details.append(f"{name}: No face encoding")
+                continue
+                
+            # Compare faces using dlib
             is_match, message = face_encoder.verify_face_match(temp_path, stored_encoding)
+            
+            match_details.append(f"{name}: {message}")
+            print(f"🎯 Checking {name}: {message}")
             
             if is_match:
                 matched_student = {
                     'university_id': university_id,
                     'name': name
                 }
+                print(f"✅ MATCH FOUND: {name}")
                 break
         
         # Cleanup temp file
-        os.remove(temp_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        print(f"📊 Match results: {match_details}")
         
         if matched_student:
             # Mark attendance
@@ -88,31 +108,45 @@ def process_attendance():
                 WHERE university_id = ? AND date = DATE('now') AND bus_number = ?
             ''', (matched_student['university_id'], bus_number))
             
-            if not cursor.fetchone():
-                # Insert attendance
-                cursor.execute('''
-                    INSERT INTO attendance (university_id, bus_number, date)
-                    VALUES (?, ?, DATE('now'))
-                ''', (matched_student['university_id'], bus_number))
-                
-                conn.commit()
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({
+                    'success': True,
+                    'message': f'✅ Attendance already marked for {matched_student["name"]}',
+                    'student': matched_student,
+                    'already_marked': True
+                })
             
+            # Insert attendance
+            cursor.execute('''
+                INSERT INTO attendance (university_id, bus_number, date)
+                VALUES (?, ?, DATE('now'))
+            ''', (matched_student['university_id'], bus_number))
+            
+            conn.commit()
             conn.close()
             
             return jsonify({
                 'success': True,
-                'message': f'Attendance marked for {matched_student["name"]}',
+                'message': f'✅ Attendance marked for {matched_student["name"]}',
                 'student': matched_student,
                 'already_marked': False
             })
         else:
+            error_msg = f'❌ No matching student found. Checked {len(students)} students.'
+            if match_details:
+                error_msg += f' Details: {", ".join(match_details[:3])}'
             return jsonify({
                 'success': False,
-                'message': 'No matching student found in this bus'
+                'message': error_msg
             })
             
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Attendance error: {str(e)}'})
+        # Cleanup temp file on error
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+        print(f"❌ Attendance error: {str(e)}")
+        return jsonify({'success': False, 'message': f'Attendance processing error: {str(e)}'})
 
 @attendance_bp.route('/today-attendance')
 def today_attendance():
