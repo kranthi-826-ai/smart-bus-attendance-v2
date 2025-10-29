@@ -36,10 +36,10 @@ def profile():
     else:
         return redirect(url_for('home'))
 
+# Create upload directories
+os.makedirs('static/uploads/faces', exist_ok=True)
+os.makedirs('static/uploads/profiles', exist_ok=True)
 
 if __name__ == '__main__':
-    # Create upload directories
-    os.makedirs('static/uploads/faces', exist_ok=True)
-    os.makedirs('static/uploads/profiles', exist_ok=True)
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
