@@ -25,7 +25,7 @@
         </div>
 
         <div class="stat-card slide-in">
-            <div class="stat-label">Attendance Status</div>
+            <div class="stat-label">Today's Attendance</div>
             <div id="attendanceStatus" style="font-size: 1.2rem; margin: 1rem 0;">
                 <i class="fas fa-sync fa-spin"></i> Checking...
             </div>
@@ -55,25 +55,35 @@
 </div>
 
 <script>
-// Check today's attendance status
+// Check today's attendance status from database
 async function checkAttendance() {
     try {
-        // This would call an API to check if student is marked present today
-        // For now, simulate API call
-        setTimeout(() => {
-            const status = Math.random() > 0.3 ? 'Present' : 'Not Marked';
-            const color = status === 'Present' ? 'var(--success)' : 'var(--warning)';
-            const icon = status === 'Present' ? 'fa-check-circle' : 'fa-clock';
+        const response = await fetch('/student/attendance-status');
+        const result = await response.json();
+        
+        if (result.success) {
+            const status = result.status;
+            const color = status === 'Present' ? 'var(--success)' : 
+                         status === 'Absent' ? 'var(--danger)' : 'var(--warning)';
+            const icon = status === 'Present' ? 'fa-check-circle' : 
+                        status === 'Absent' ? 'fa-times-circle' : 'fa-clock';
+            const text = status === 'Present' ? 'Present ✅' : 
+                        status === 'Absent' ? 'Absent ❌' : 'Not Marked Yet ⏳';
             
             document.getElementById('attendanceStatus').innerHTML = `
                 <i class="fas ${icon}" style="color: ${color};"></i>
-                <span style="color: ${color}; font-weight: bold;">${status}</span>
+                <span style="color: ${color}; font-weight: bold;">${text}</span>
             `;
-        }, 1000);
+        } else {
+            document.getElementById('attendanceStatus').innerHTML = `
+                <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                <span style="color: var(--danger);">Error Loading</span>
+            `;
+        }
     } catch (error) {
         document.getElementById('attendanceStatus').innerHTML = `
             <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
-            <span style="color: var(--danger);">Error</span>
+            <span style="color: var(--danger);">Connection Error</span>
         `;
     }
 }

@@ -143,3 +143,33 @@ def dashboard():
                          student_name=session.get('student_name'),
                          university_id=session.get('student_id'),
                          bus_number=session.get('bus_number'))
+
+@student_bp.route('/attendance-status')
+def attendance_status():
+    if 'student_id' not in session or session.get('role') != 'student':
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+    
+    try:
+        university_id = session.get('student_id')
+        bus_number = session.get('bus_number')
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Check if attendance marked today
+        cursor.execute('''
+            SELECT * FROM attendance 
+            WHERE university_id = ? AND date = DATE('now') AND bus_number = ?
+        ''', (university_id, bus_number))
+        
+        attendance_record = cursor.fetchone()
+        conn.close()
+        
+        if attendance_record:
+            return jsonify({'success': True, 'status': 'Present'})
+        else:
+            return jsonify({'success': True, 'status': 'Not Marked'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error checking attendance: {str(e)}'})
+    
