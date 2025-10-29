@@ -1,81 +1,113 @@
 import face_recognition
-import cv2
 import numpy as np
-import base64
-import pickle
+import cv2
 import os
+import pickle
 from datetime import datetime
 
 class FaceEncoder:
-    def __init__(self):
-        self.uploads_dir = "static/uploads/faces"
-        os.makedirs(self.uploads_dir, exist_ok=True)
+    def __init__(self, encodings_file='face_encodings.pkl'):
+        self.encodings_file = encodings_file
+        self.known_encodings = {}
+        self.load_encodings()
     
-    def capture_face_encoding(self, image_path):
-        """Extract face encoding using dlib"""
+    def load_encodings(self):
         try:
-            # Load image using face_recognition
+            if os.path.exists(self.encodings_file):
+                with open(self.encodings_file, 'rb') as f:
+                    self.known_encodings = pickle.load(f)
+                print(f"✅ Loaded {len(self.known_encodings)} face encodings")
+            else:
+                print("⚠️ No existing encodings file found")
+                self.known_encodings = {}
+        except Exception as e:
+            print(f"❌ Error loading encodings: {e}")
+            self.known_encodings = {}
+    
+    def save_encodings(self):
+        try:
+            with open(self.encodings_file, 'wb') as f:
+                pickle.dump(self.known_encodings, f)
+            print(f"💾 Saved {len(self.known_encodings)} face encodings")
+        except Exception as e:
+            print(f"❌ Error saving encodings: {e}")
+    
+    def encode_face(self, image_path, university_id):
+        try:
+            print(f"🔄 Encoding face for {university_id} from {image_path}")
+            
             image = face_recognition.load_image_file(image_path)
-            
-            # Find face locations
-            face_locations = face_recognition.face_locations(image)
-            
-            if len(face_locations) == 0:
-                return None, "No face detected. Please ensure: 1. Good lighting 2. Face is clearly visible 3. No glasses/sunglasses"
-            
-            if len(face_locations) > 1:
-                return None, "Multiple faces detected. Please ensure only one person is in the frame."
-            
-            # Extract face encoding
-            face_encodings = face_recognition.face_encodings(image, face_locations)
+            face_encodings = face_recognition.face_encodings(image)
             
             if len(face_encodings) == 0:
-                return None, "Could not extract face features. Please try again with better lighting."
+                print(f"❌ No face detected in {image_path}")
+                return False, "No face detected in image"
             
-            # Convert to base64 for storage
-            encoding_bytes = pickle.dumps(face_encodings[0])
-            encoding_base64 = base64.b64encode(encoding_bytes).decode('utf-8')
+            if len(face_encodings) > 1:
+                print(f"⚠️ Multiple faces detected, using first face")
             
-            return encoding_base64, "Face encoded successfully!"
+            face_encoding = face_encodings[0]
+            encoding_list = face_encoding.tolist()
+            
+            self.known_encodings[university_id] = encoding_list
+            self.save_encodings()
+            
+            print(f"✅ Face encoded successfully for {university_id}")
+            return True, "Face encoded successfully"
             
         except Exception as e:
-            return None, f"Face processing error: {str(e)}"
+            print(f"❌ Error encoding face: {e}")
+            return False, f"Error encoding face: {str(e)}"
     
-    def verify_face_match(self, live_image_path, stored_encoding_base64):
-        """Verify if live face matches stored encoding using dlib"""
+    def recognize_face(self, image_path, tolerance=0.6):
         try:
-            # Decode stored encoding
-            encoding_bytes = base64.b64decode(stored_encoding_base64)
-            stored_encoding = pickle.loads(encoding_bytes)
+            print(f"🔄 Recognizing face from {image_path}")
             
-            # Process live image
-            live_image = face_recognition.load_image_file(live_image_path)
-            live_face_locations = face_recognition.face_locations(live_image)
+            unknown_image = face_recognition.load_image_file(image_path)
+            unknown_encodings = face_recognition.face_encodings(unknown_image)
             
-            if len(live_face_locations) == 0:
-                return False, "No face detected in live image. Please ensure face is clearly visible."
+            if len(unknown_encodings) == 0:
+                print("❌ No face detected in the image")
+                return None, "No face detected"
             
-            live_face_encodings = face_recognition.face_encodings(live_image, live_face_locations)
+            unknown_encoding = unknown_encodings[0]
             
-            if len(live_face_encodings) == 0:
-                return False, "Could not extract face features from live image."
+            known_encodings_list = []
+            known_ids = []
             
-            # Compare faces using dlib
-            matches = face_recognition.compare_faces([stored_encoding], live_face_encodings[0])
-            face_distance = face_recognition.face_distance([stored_encoding], live_face_encodings[0])
+            for uid, encoding in self.known_encodings.items():
+                known_encodings_list.append(np.array(encoding))
+                known_ids.append(uid)
             
-            # Consider it a match if distance is less than 0.6
-            if matches[0] and face_distance[0] < 0.6:
-                return True, "Face matched successfully!"
+            if not known_encodings_list:
+                print("❌ No known faces in database")
+                return None, "No known faces in database"
+            
+            matches = face_recognition.compare_faces(
+                known_encodings_list, 
+                unknown_encoding, 
+                tolerance=tolerance
+            )
+            
+            face_distances = face_recognition.face_distance(
+                known_encodings_list, 
+                unknown_encoding
+            )
+            
+            best_match_index = np.argmin(face_distances) if face_distances.size > 0 else -1
+            
+            if best_match_index != -1 and matches[best_match_index]:
+                matched_id = known_ids[best_match_index]
+                confidence = 1 - face_distances[best_match_index]
+                print(f"✅ Face recognized as {matched_id} with confidence {confidence:.2f}")
+                return matched_id, confidence
             else:
-                return False, "Face does not match. Please ensure: 1. Same person 2. Good lighting 3. Clear face view"
+                print("❌ No matching face found")
+                return None, "No matching face found"
                 
         except Exception as e:
-            return False, f"Face matching error: {str(e)}"
-    
-    def save_face_image(self, image_file, university_id):
-        """Save face image for reference"""
-        filename = f"{university_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        filepath = os.path.join(self.uploads_dir, filename)
-        image_file.save(filepath)
-        return filepath
+            print(f"❌ Error recognizing face: {e}")
+            return None, f"Error recognizing face: {str(e)}"
+
+# Global instance
+face_encoder = FaceEncoder()
