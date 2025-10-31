@@ -1,23 +1,12 @@
 import os
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here-change-in-production'
-    DATABASE_PATH = 'database.db'
-    UPLOAD_FOLDER = 'static/uploads'
+    SECRET_KEY = 'your-secret-key-here-change-this-in-production'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'database.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_TYPE = 'filesystem'
+    
+    # File upload settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
-    
-    # Face recognition settings
-    FACE_RECOGNITION_TOLERANCE = 0.6
-    FACE_DETECTION_MODEL = 'hog'  # or 'cnn' for better accuracy (slower)
-    
-    # OTP settings
-    OTP_EXPIRY_MINUTES = 10
-    OTP_LENGTH = 6
-
-class ProductionConfig(Config):
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    DEBUG = False
-
-class DevelopmentConfig(Config):
-    DEBUG = True
-    TESTING = True
+    UPLOAD_FOLDER = 'static/uploads'
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
