@@ -1,3 +1,4 @@
+from deepface import DeepFace
 import cv2
 import numpy as np
 import os
@@ -8,7 +9,6 @@ class FaceEncoder:
     def __init__(self, encodings_file='face_encodings.pkl'):
         self.encodings_file = encodings_file
         self.known_faces = {}
-        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         self.load_encodings()
     
     def load_encodings(self):
@@ -36,41 +36,22 @@ class FaceEncoder:
         try:
             print(f"🔄 Encoding face for {university_id} from {image_path}")
             
-            # Read and process image
-            image = cv2.imread(image_path)
-            if image is None:
-                return False, "Could not read image"
-            
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            
-            # Detect faces
-            faces = self.face_cascade.detectMultiScale(
-                gray, 
-                scaleFactor=1.1, 
-                minNeighbors=5, 
-                minSize=(30, 30)
+            # Use DeepFace to get face embedding
+            embedding_objs = DeepFace.represent(
+                img_path=image_path,
+                model_name="Facenet",
+                enforce_detection=True,
+                detector_backend="opencv"
             )
             
-            if len(faces) == 0:
-                print(f"❌ No face detected in {image_path}")
+            if not embedding_objs:
                 return False, "No face detected in image"
             
-            if len(faces) > 1:
-                print(f"⚠️ Multiple faces detected, using first face")
-            
-            # Use the first face
-            x, y, w, h = faces[0]
-            face_roi = gray[y:y+h, x:x+w]
-            
-            # Resize to standard size for consistency
-            face_standard = cv2.resize(face_roi, (100, 100))
-            
-            # Flatten and normalize
-            face_encoding = face_standard.flatten()
-            face_encoding = face_encoding / 255.0  # Normalize
+            # Get the first face embedding
+            face_embedding = embedding_objs[0]["embedding"]
             
             # Store encoding
-            self.known_faces[university_id] = face_encoding.tolist()
+            self.known_faces[university_id] = face_embedding
             self.save_encodings()
             
             print(f"✅ Face encoded successfully for {university_id}")
@@ -80,45 +61,36 @@ class FaceEncoder:
             print(f"❌ Error encoding face: {e}")
             return False, f"Error encoding face: {str(e)}"
     
-    def recognize_face(self, image_path, threshold=0.7):
+    def recognize_face(self, image_path, threshold=0.6):
         try:
             print(f"🔄 Recognizing face from {image_path}")
             
-            # Read and process unknown image
-            unknown_image = cv2.imread(image_path)
-            if unknown_image is None:
-                return None, "Could not read image"
+            if not self.known_faces:
+                return None, "No known faces in database"
             
-            gray = cv2.cvtColor(unknown_image, cv2.COLOR_BGR2GRAY)
-            
-            # Detect faces
-            faces = self.face_cascade.detectMultiScale(
-                gray, 
-                scaleFactor=1.1, 
-                minNeighbors=5, 
-                minSize=(30, 30)
+            # Get embedding of current face
+            current_embedding_objs = DeepFace.represent(
+                img_path=image_path,
+                model_name="Facenet", 
+                enforce_detection=True,
+                detector_backend="opencv"
             )
             
-            if len(faces) == 0:
-                print("❌ No face detected in the image")
+            if not current_embedding_objs:
                 return None, "No face detected"
             
-            # Use the first face
-            x, y, w, h = faces[0]
-            unknown_face_roi = gray[y:y+h, x:x+w]
-            unknown_face_standard = cv2.resize(unknown_face_roi, (100, 100))
-            unknown_encoding = unknown_face_standard.flatten() / 255.0
+            current_embedding = np.array(current_embedding_objs[0]["embedding"])
             
             best_match_id = None
             best_similarity = 0
             
-            # Compare with known faces
-            for uid, known_encoding in self.known_faces.items():
-                known_array = np.array(known_encoding)
+            # Compare with all known faces
+            for uid, known_embedding in self.known_faces.items():
+                known_array = np.array(known_embedding)
                 
-                # Calculate similarity (cosine similarity)
-                similarity = np.dot(unknown_encoding, known_array) / (
-                    np.linalg.norm(unknown_encoding) * np.linalg.norm(known_array)
+                # Calculate cosine similarity
+                similarity = np.dot(current_embedding, known_array) / (
+                    np.linalg.norm(current_embedding) * np.linalg.norm(known_array)
                 )
                 
                 if similarity > best_similarity and similarity > threshold:
