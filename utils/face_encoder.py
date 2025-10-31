@@ -1,6 +1,6 @@
-import face_recognition
-import numpy as np
+from deepface import DeepFace
 import cv2
+import numpy as np
 import os
 import pickle
 from datetime import datetime
@@ -8,27 +8,27 @@ from datetime import datetime
 class FaceEncoder:
     def __init__(self, encodings_file='face_encodings.pkl'):
         self.encodings_file = encodings_file
-        self.known_encodings = {}
+        self.known_faces = {}
         self.load_encodings()
     
     def load_encodings(self):
         try:
             if os.path.exists(self.encodings_file):
                 with open(self.encodings_file, 'rb') as f:
-                    self.known_encodings = pickle.load(f)
-                print(f"✅ Loaded {len(self.known_encodings)} face encodings")
+                    self.known_faces = pickle.load(f)
+                print(f"✅ Loaded {len(self.known_faces)} face encodings")
             else:
                 print("⚠️ No existing encodings file found")
-                self.known_encodings = {}
+                self.known_faces = {}
         except Exception as e:
             print(f"❌ Error loading encodings: {e}")
-            self.known_encodings = {}
+            self.known_faces = {}
     
     def save_encodings(self):
         try:
             with open(self.encodings_file, 'wb') as f:
-                pickle.dump(self.known_encodings, f)
-            print(f"💾 Saved {len(self.known_encodings)} face encodings")
+                pickle.dump(self.known_faces, f)
+            print(f"💾 Saved {len(self.known_faces)} face encodings")
         except Exception as e:
             print(f"❌ Error saving encodings: {e}")
     
@@ -36,20 +36,22 @@ class FaceEncoder:
         try:
             print(f"🔄 Encoding face for {university_id} from {image_path}")
             
-            image = face_recognition.load_image_file(image_path)
-            face_encodings = face_recognition.face_encodings(image)
+            # Use DeepFace to get face embedding
+            embedding_objs = DeepFace.represent(
+                img_path=image_path,
+                model_name="Facenet",
+                enforce_detection=True,
+                detector_backend="opencv"
+            )
             
-            if len(face_encodings) == 0:
-                print(f"❌ No face detected in {image_path}")
+            if not embedding_objs:
                 return False, "No face detected in image"
             
-            if len(face_encodings) > 1:
-                print(f"⚠️ Multiple faces detected, using first face")
+            # Get the first face embedding
+            face_embedding = embedding_objs[0]["embedding"]
             
-            face_encoding = face_encodings[0]
-            encoding_list = face_encoding.tolist()
-            
-            self.known_encodings[university_id] = encoding_list
+            # Store encoding
+            self.known_faces[university_id] = face_embedding
             self.save_encodings()
             
             print(f"✅ Face encoded successfully for {university_id}")
@@ -59,48 +61,45 @@ class FaceEncoder:
             print(f"❌ Error encoding face: {e}")
             return False, f"Error encoding face: {str(e)}"
     
-    def recognize_face(self, image_path, tolerance=0.6):
+    def recognize_face(self, image_path, threshold=0.6):
         try:
             print(f"🔄 Recognizing face from {image_path}")
             
-            unknown_image = face_recognition.load_image_file(image_path)
-            unknown_encodings = face_recognition.face_encodings(unknown_image)
-            
-            if len(unknown_encodings) == 0:
-                print("❌ No face detected in the image")
-                return None, "No face detected"
-            
-            unknown_encoding = unknown_encodings[0]
-            
-            known_encodings_list = []
-            known_ids = []
-            
-            for uid, encoding in self.known_encodings.items():
-                known_encodings_list.append(np.array(encoding))
-                known_ids.append(uid)
-            
-            if not known_encodings_list:
-                print("❌ No known faces in database")
+            if not self.known_faces:
                 return None, "No known faces in database"
             
-            matches = face_recognition.compare_faces(
-                known_encodings_list, 
-                unknown_encoding, 
-                tolerance=tolerance
+            # Get embedding of current face
+            current_embedding_objs = DeepFace.represent(
+                img_path=image_path,
+                model_name="Facenet", 
+                enforce_detection=True,
+                detector_backend="opencv"
             )
             
-            face_distances = face_recognition.face_distance(
-                known_encodings_list, 
-                unknown_encoding
-            )
+            if not current_embedding_objs:
+                return None, "No face detected"
             
-            best_match_index = np.argmin(face_distances) if face_distances.size > 0 else -1
+            current_embedding = np.array(current_embedding_objs[0]["embedding"])
             
-            if best_match_index != -1 and matches[best_match_index]:
-                matched_id = known_ids[best_match_index]
-                confidence = 1 - face_distances[best_match_index]
-                print(f"✅ Face recognized as {matched_id} with confidence {confidence:.2f}")
-                return matched_id, confidence
+            best_match_id = None
+            best_similarity = 0
+            
+            # Compare with all known faces
+            for uid, known_embedding in self.known_faces.items():
+                known_array = np.array(known_embedding)
+                
+                # Calculate cosine similarity
+                similarity = np.dot(current_embedding, known_array) / (
+                    np.linalg.norm(current_embedding) * np.linalg.norm(known_array)
+                )
+                
+                if similarity > best_similarity and similarity > threshold:
+                    best_similarity = similarity
+                    best_match_id = uid
+            
+            if best_match_id:
+                print(f"✅ Face recognized as {best_match_id} with similarity {best_similarity:.2f}")
+                return best_match_id, best_similarity
             else:
                 print("❌ No matching face found")
                 return None, "No matching face found"
