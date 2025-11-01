@@ -108,5 +108,11 @@ class FaceEncoder:
             print(f"❌ Error recognizing face: {e}")
             return None, f"Error recognizing face: {str(e)}"
 
+
+
+def capture_face_encoding(self, image_path, university_id):
+    """Fix for compatibility - redirect to encode_face"""
+    return self.encode_face(image_path, university_id)
+
 # Global instance
 face_encoder = FaceEncoder()
