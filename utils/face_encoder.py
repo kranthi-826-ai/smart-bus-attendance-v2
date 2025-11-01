@@ -1,118 +1,93 @@
-import face_recognition
-import numpy as np
-import os
-import pickle
+import deepface
+from deepface import DeepFace
 import cv2
+import numpy as np
+import base64
+import pickle
+import os
 from datetime import datetime
 
 class FaceEncoder:
-    def __init__(self, encodings_file='face_encodings.pkl'):
-        self.encodings_file = encodings_file
-        self.known_encodings = {}
-        self.load_encodings()
+    def __init__(self):
+        self.uploads_dir = "static/uploads/faces"
+        os.makedirs(self.uploads_dir, exist_ok=True)
     
-    def load_encodings(self):
+    def capture_face_encoding(self, image_path):
+        """Extract face encoding using DeepFace"""
         try:
-            if os.path.exists(self.encodings_file):
-                with open(self.encodings_file, 'rb') as f:
-                    self.known_encodings = pickle.load(f)
-                print(f"✅ Loaded {len(self.known_encodings)} face encodings")
-            else:
-                print("⚠️ No existing encodings file found")
-                self.known_encodings = {}
-        except Exception as e:
-            print(f"❌ Error loading encodings: {e}")
-            self.known_encodings = {}
-    
-    def save_encodings(self):
-        try:
-            with open(self.encodings_file, 'wb') as f:
-                pickle.dump(self.known_encodings, f)
-            print(f"💾 Saved {len(self.known_encodings)} face encodings")
-        except Exception as e:
-            print(f"❌ Error saving encodings: {e}")
-    
-    def encode_face(self, image_path, university_id):
-        try:
-            print(f"🔄 Encoding face for {university_id} from {image_path}")
+            # Verify the image can be processed
+            if not os.path.exists(image_path):
+                return None, "Image file not found"
             
-            # Load image using face_recognition (uses dlib)
-            image = face_recognition.load_image_file(image_path)
-            face_encodings = face_recognition.face_encodings(image)
-            
-            if len(face_encodings) == 0:
-                return False, "No face detected in image"
-            
-            if len(face_encodings) > 1:
-                print(f"⚠️ Multiple faces detected, using first face")
-            
-            # Store the 128-dimensional dlib encoding
-            self.known_encodings[university_id] = face_encodings[0].tolist()
-            self.save_encodings()
-            
-            print(f"✅ Face encoded successfully for {university_id}")
-            return True, "Face encoded successfully"
+            # Use DeepFace for accurate face encoding
+            try:
+                result = DeepFace.represent(
+                    img_path=image_path,
+                    model_name='Facenet',
+                    enforce_detection=True,
+                    detector_backend='opencv'
+                )
+                
+                if not result:
+                    return None, "No face detected"
+                
+                # Get the face embedding
+                face_embedding = result[0]['embedding']
+                
+                # Convert to base64 for storage
+                encoding_bytes = pickle.dumps(face_embedding)
+                encoding_base64 = base64.b64encode(encoding_bytes).decode('utf-8')
+                
+                return encoding_base64, "Face encoded successfully with DeepFace!"
+                
+            except Exception as deepface_error:
+                return None, f"Face detection failed: {str(deepface_error)}"
             
         except Exception as e:
-            print(f"❌ Error encoding face: {e}")
-            return False, f"Error encoding face: {str(e)}"
+            return None, f"Face processing error: {str(e)}"
     
-    def recognize_face(self, image_path, tolerance=0.6):
+    def verify_face_match(self, live_image_path, stored_encoding_base64):
+        """Verify if live face matches stored encoding using DeepFace"""
         try:
-            print(f"🔄 Recognizing face from {image_path}")
+            # Decode stored encoding
+            encoding_bytes = base64.b64decode(stored_encoding_base64)
+            stored_embedding = pickle.loads(encoding_bytes)
             
-            # Load and encode unknown image
-            unknown_image = face_recognition.load_image_file(image_path)
-            unknown_encodings = face_recognition.face_encodings(unknown_image)
-            
-            if len(unknown_encodings) == 0:
-                return None, "No face detected"
-            
-            unknown_encoding = unknown_encodings[0]
-            
-            # Convert stored encodings back to numpy
-            known_encodings_list = []
-            known_ids = []
-            
-            for uid, encoding in self.known_encodings.items():
-                known_encodings_list.append(np.array(encoding))
-                known_ids.append(uid)
-            
-            if not known_encodings_list:
-                return None, "No registered faces"
-            
-            # Use dlib's face comparison
-            matches = face_recognition.compare_faces(
-                known_encodings_list, 
-                unknown_encoding, 
-                tolerance=tolerance
-            )
-            
-            face_distances = face_recognition.face_distance(
-                known_encodings_list, 
-                unknown_encoding
-            )
-            
-            # Find best match
-            best_match_index = np.argmin(face_distances)
-            
-            if matches[best_match_index]:
-                matched_id = known_ids[best_match_index]
-                confidence = 1 - face_distances[best_match_index]
-                print(f"✅ Face recognized as {matched_id} (confidence: {confidence:.2f})")
-                return matched_id, confidence
-            else:
-                return None, "No matching face found"
+            # Verify live image with DeepFace
+            try:
+                result = DeepFace.represent(
+                    img_path=live_image_path,
+                    model_name='Facenet',
+                    enforce_detection=True,
+                    detector_backend='opencv'
+                )
+                
+                if not result:
+                    return False, "No face detected in live image"
+                
+                live_embedding = result[0]['embedding']
+                
+                # Calculate cosine similarity
+                from numpy import dot
+                from numpy.linalg import norm
+                
+                cosine_similarity = dot(stored_embedding, live_embedding) / (norm(stored_embedding) * norm(live_embedding))
+                
+                # Consider it a match if similarity > 0.6
+                if cosine_similarity > 0.6:
+                    return True, f"Face matched successfully! Similarity: {cosine_similarity:.2f}"
+                else:
+                    return False, f"Face does not match. Similarity: {cosine_similarity:.2f}"
+                    
+            except Exception as deepface_error:
+                return False, f"Live face verification failed: {str(deepface_error)}"
                 
         except Exception as e:
-            print(f"❌ Error recognizing face: {e}")
-            return None, f"Error recognizing face: {str(e)}"
-
-
-
-def capture_face_encoding(self, image_path, university_id):
-    """Fix for compatibility - redirect to encode_face"""
-    return self.encode_face(image_path, university_id)
-
-# Global instance
-face_encoder = FaceEncoder()
+            return False, f"Face matching error: {str(e)}"
+    
+    def save_face_image(self, image_file, university_id):
+        """Save face image for reference"""
+        filename = f"{university_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        filepath = os.path.join(self.uploads_dir, filename)
+        image_file.save(filepath)
+        return filepath

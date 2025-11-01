@@ -144,6 +144,7 @@ def dashboard():
                          university_id=session.get('student_id'),
                          bus_number=session.get('bus_number'))
 
+
 @student_bp.route('/attendance-status')
 def attendance_status():
     if 'student_id' not in session or session.get('role') != 'student':
@@ -172,4 +173,3 @@ def attendance_status():
             
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error checking attendance: {str(e)}'})
-    
