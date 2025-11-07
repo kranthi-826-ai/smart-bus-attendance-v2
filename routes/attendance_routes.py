@@ -48,6 +48,16 @@ def process_attendance():
         
         print(f"📸 Saved temporary image: {temp_path}")
         
+        # Extract encoding for scanned face
+        scanned_encoding = face_encoder.encode_face(temp_path)
+
+        # Remove the temp file as early as possible
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        if scanned_encoding is None:
+            return jsonify({'success': False, 'message': 'No face found in the scanned image.'})
+        
         # Get all students from this bus
         conn = db.get_connection()
         cursor = conn.cursor()
@@ -61,27 +71,35 @@ def process_attendance():
         conn.close()
         
         if not students:
-            os.remove(temp_path)
             return jsonify({'success': False, 'message': f'No students with face data found in bus {bus_number}'})
         
         print(f"🔍 Checking {len(students)} students in bus {bus_number}")
         
-        # Find matching student using dlib
+        # Find matching student using face_encoder.compare_faces
         matched_student = None
         match_details = []
         
-        for student in students:
-            university_id, name, stored_encoding = student
-            
+        for university_id, name, stored_encoding in students:
             if not stored_encoding:
                 match_details.append(f"{name}: No face encoding")
                 continue
-                
-            # Compare faces using dlib
-            is_match, message = face_encoder.verify_face_match(temp_path, stored_encoding)
             
-            match_details.append(f"{name}: {message}")
-            print(f"🎯 Checking {name}: {message}")
+            # Convert stored encoding to numpy array if needed
+            try:
+                if isinstance(stored_encoding, str):
+                    # Assuming stored_encoding is a string like "[0.123, -0.456, ...]"
+                    stored_encoding_np = np.fromstring(stored_encoding.strip("[]"), sep=',')
+                else:
+                    stored_encoding_np = np.array(stored_encoding)
+            except:
+                match_details.append(f"{name}: Failed to decode encoding")
+                continue
+
+            is_match = face_encoder.compare_faces(stored_encoding_np, scanned_encoding, tolerance=0.6)
+            
+            result_str = "Match" if is_match else "No match"
+            match_details.append(f"{name}: {result_str}")
+            print(f"🎯 Checking {name}: {result_str}")
             
             if is_match:
                 matched_student = {
@@ -90,10 +108,6 @@ def process_attendance():
                 }
                 print(f"✅ MATCH FOUND: {name}")
                 break
-        
-        # Cleanup temp file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         
         print(f"📊 Match results: {match_details}")
         
@@ -140,13 +154,11 @@ def process_attendance():
                 'success': False,
                 'message': error_msg
             })
-            
+        
     except Exception as e:
-        # Cleanup temp file on error
-        if 'temp_path' in locals() and os.path.exists(temp_path):
-            os.remove(temp_path)
         print(f"❌ Attendance error: {str(e)}")
         return jsonify({'success': False, 'message': f'Attendance processing error: {str(e)}'})
+
 
 @attendance_bp.route('/today-attendance')
 def today_attendance():
