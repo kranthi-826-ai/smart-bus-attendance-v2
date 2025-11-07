@@ -101,7 +101,8 @@ def signup():
                     f.write(image_bytes)
                 
                 # Extract face encoding using dlib
-                face_encoding, message = face_encoder.encode_face(temp_image_path)
+                face_encoding = face_encoder.encode_face(temp_image_path)
+
                 
                 # Remove temp image
                 if os.path.exists(temp_image_path):
