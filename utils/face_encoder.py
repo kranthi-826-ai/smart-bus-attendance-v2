@@ -1,93 +1,91 @@
-import deepface
-from deepface import DeepFace
-import cv2
+import face_recognition
 import numpy as np
-import base64
-import pickle
 import os
-from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class FaceEncoder:
-    def __init__(self):
-        self.uploads_dir = "static/uploads/faces"
-        os.makedirs(self.uploads_dir, exist_ok=True)
+    """Lightweight face encoding using face_recognition (dlib-based)"""
     
-    def capture_face_encoding(self, image_path):
-        """Extract face encoding using DeepFace"""
-        try:
-            # Verify the image can be processed
-            if not os.path.exists(image_path):
-                return None, "Image file not found"
-            
-            # Use DeepFace for accurate face encoding
-            try:
-                result = DeepFace.represent(
-                    img_path=image_path,
-                    model_name='Facenet',
-                    enforce_detection=True,
-                    detector_backend='opencv'
-                )
-                
-                if not result:
-                    return None, "No face detected"
-                
-                # Get the face embedding
-                face_embedding = result[0]['embedding']
-                
-                # Convert to base64 for storage
-                encoding_bytes = pickle.dumps(face_embedding)
-                encoding_base64 = base64.b64encode(encoding_bytes).decode('utf-8')
-                
-                return encoding_base64, "Face encoded successfully with DeepFace!"
-                
-            except Exception as deepface_error:
-                return None, f"Face detection failed: {str(deepface_error)}"
-            
-        except Exception as e:
-            return None, f"Face processing error: {str(e)}"
+    def __init__(self, model='hog'):
+        """
+        Initialize face encoder
+        model: 'hog' (fast, CPU-friendly) or 'cnn' (accurate, requires more resources)
+        For PythonAnywhere free tier, use 'hog'
+        """
+        self.model = model
+        self.known_encodings = []
+        self.known_names = []
     
-    def verify_face_match(self, live_image_path, stored_encoding_base64):
-        """Verify if live face matches stored encoding using DeepFace"""
+    def encode_face(self, image_path):
+        """
+        Encode a single face from an image file
+        Returns: face encoding (numpy array) or None if no face found
+        """
         try:
-            # Decode stored encoding
-            encoding_bytes = base64.b64decode(stored_encoding_base64)
-            stored_embedding = pickle.loads(encoding_bytes)
+            # Load image
+            image = face_recognition.load_image_file(image_path)
             
-            # Verify live image with DeepFace
-            try:
-                result = DeepFace.represent(
-                    img_path=live_image_path,
-                    model_name='Facenet',
-                    enforce_detection=True,
-                    detector_backend='opencv'
-                )
-                
-                if not result:
-                    return False, "No face detected in live image"
-                
-                live_embedding = result[0]['embedding']
-                
-                # Calculate cosine similarity
-                from numpy import dot
-                from numpy.linalg import norm
-                
-                cosine_similarity = dot(stored_embedding, live_embedding) / (norm(stored_embedding) * norm(live_embedding))
-                
-                # Consider it a match if similarity > 0.6
-                if cosine_similarity > 0.6:
-                    return True, f"Face matched successfully! Similarity: {cosine_similarity:.2f}"
-                else:
-                    return False, f"Face does not match. Similarity: {cosine_similarity:.2f}"
-                    
-            except Exception as deepface_error:
-                return False, f"Live face verification failed: {str(deepface_error)}"
+            # Get face encodings (returns list of encodings)
+            face_encodings = face_recognition.face_encodings(image, model=self.model)
+            
+            if face_encodings:
+                return face_encodings[0]  # Return first face encoding
+            else:
+                logger.warning(f"No face found in {image_path}")
+                return None
                 
         except Exception as e:
-            return False, f"Face matching error: {str(e)}"
+            logger.error(f"Error encoding face from {image_path}: {str(e)}")
+            return None
     
-    def save_face_image(self, image_file, university_id):
-        """Save face image for reference"""
-        filename = f"{university_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        filepath = os.path.join(self.uploads_dir, filename)
-        image_file.save(filepath)
-        return filepath
+    def compare_faces(self, known_encoding, unknown_encoding, tolerance=0.6):
+        """
+        Compare two face encodings
+        Returns: True if faces match, False otherwise
+        tolerance: 0.6 is default, lower = stricter matching
+        """
+        try:
+            distance = face_recognition.face_distance([known_encoding], unknown_encoding)
+            return distance[0] < tolerance
+        except Exception as e:
+            logger.error(f"Error comparing faces: {str(e)}")
+            return False
+    
+    def get_distance(self, known_encoding, unknown_encoding):
+        """Get Euclidean distance between two face encodings"""
+        try:
+            distance = face_recognition.face_distance([known_encoding], unknown_encoding)
+            return float(distance[0])
+        except Exception as e:
+            logger.error(f"Error calculating distance: {str(e)}")
+            return 1.0
+    
+    def detect_face(self, image_path):
+        """
+        Detect face and return coordinates and encoding
+        Returns: dict with 'face_locations' and 'encoding', or None
+        """
+        try:
+            image = face_recognition.load_image_file(image_path)
+            face_locations = face_recognition.face_locations(image, model=self.model)
+            face_encodings = face_recognition.face_encodings(image, face_locations)
+            
+            if face_locations and face_encodings:
+                return {
+                    'face_locations': face_locations,
+                    'encoding': face_encodings[0]
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error detecting face: {str(e)}")
+            return None
+    
+    def encode_list_to_json(self, encoding):
+        """Convert numpy array encoding to JSON-serializable list"""
+        return encoding.tolist() if isinstance(encoding, np.ndarray) else encoding
+    
+    def encode_json_to_array(self, json_encoding):
+        """Convert JSON list encoding back to numpy array"""
+        return np.array(json_encoding) if isinstance(json_encoding, list) else json_encoding
