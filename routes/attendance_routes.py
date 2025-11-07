@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import csv
 from io import StringIO
+import json
 
 attendance_bp = Blueprint('attendance', __name__)
 db = Database()
@@ -39,7 +40,6 @@ def process_attendance():
         image_data = image_data.split(',')[1]  # Remove data:image/jpeg;base64,
         image_bytes = base64.b64decode(image_data)
         
-        # Save temporary image with better quality
         temp_path = f"static/uploads/temp_attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         os.makedirs("static/uploads", exist_ok=True)
         
@@ -48,10 +48,8 @@ def process_attendance():
         
         print(f"📸 Saved temporary image: {temp_path}")
         
-        # Extract encoding for scanned face
         scanned_encoding = face_encoder.encode_face(temp_path)
 
-        # Remove the temp file as early as possible
         if os.path.exists(temp_path):
             os.remove(temp_path)
         
@@ -75,7 +73,6 @@ def process_attendance():
         
         print(f"🔍 Checking {len(students)} students in bus {bus_number}")
         
-        # Find matching student using face_encoder.compare_faces
         matched_student = None
         match_details = []
         
@@ -83,15 +80,11 @@ def process_attendance():
             if not stored_encoding:
                 match_details.append(f"{name}: No face encoding")
                 continue
-            
-            # Convert stored encoding to numpy array if needed
+
+            # Change here! Load DB encoding back to numpy array using json.loads
             try:
-                if isinstance(stored_encoding, str):
-                    # Assuming stored_encoding is a string like "[0.123, -0.456, ...]"
-                    stored_encoding_np = np.fromstring(stored_encoding.strip("[]"), sep=',')
-                else:
-                    stored_encoding_np = np.array(stored_encoding)
-            except:
+                stored_encoding_np = np.array(json.loads(stored_encoding))
+            except Exception as e:
                 match_details.append(f"{name}: Failed to decode encoding")
                 continue
 
@@ -158,6 +151,8 @@ def process_attendance():
     except Exception as e:
         print(f"❌ Attendance error: {str(e)}")
         return jsonify({'success': False, 'message': f'Attendance processing error: {str(e)}'})
+
+# All other attendance routes stay the same!
 
 
 @attendance_bp.route('/today-attendance')

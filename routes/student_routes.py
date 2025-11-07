@@ -8,6 +8,7 @@ from datetime import datetime
 import uuid
 import re
 import logging
+import json   # <-- ADD THIS
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,6 @@ def signup():
                 if os.path.exists(temp_image_path):
                     os.remove(temp_image_path)
                 
-                # FIX HERE: Check for None, not falsy value
                 if face_encoding is None:
                     return jsonify({'success': False, 'message': 'No face found in the captured image. Please try again with a clearer face photo.'})
                 
@@ -115,11 +115,14 @@ def signup():
             # Hash password
             hashed_password = hashlib.sha256(password.encode()).hexdigest()
             
+            # Convert encoding to JSON before saving in DB
+            encoding_str = json.dumps(face_encoding.tolist())
+            
             # Insert student data
             cursor.execute('''
                 INSERT INTO students (university_id, password, name, bus_number, bus_password, face_encoding)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (university_id, hashed_password, name, bus_number, bus_password, face_encoding))
+            ''', (university_id, hashed_password, name, bus_number, bus_password, encoding_str))
             
             conn.commit()
             conn.close()
