@@ -7,6 +7,37 @@ import base64
 from datetime import datetime
 import uuid
 
+import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ===== VALIDATION FUNCTIONS =====
+def validate_university_code(code):
+    """Validate exactly 10-digit university code"""
+    return bool(re.match(r'^\d{10}$', str(code)))
+
+def validate_phone(phone):
+    """Validate 10-digit phone number"""
+    if not phone:
+        return False
+    return bool(re.match(r'^\d{10}$', str(phone)))
+
+def validate_bus_number(bus_no):
+    """Validate bus number (1-3 digits)"""
+    try:
+        bus_num = int(bus_no)
+        return 1 <= bus_num <= 999
+    except:
+        return False
+
+def validate_roll_number(roll_no):
+    """Validate roll number (numbers only)"""
+    return bool(re.match(r'^\d+$', str(roll_no)))
+
+# ===== END VALIDATION FUNCTIONS =====
+
+
 student_bp = Blueprint('student', __name__)
 db = Database()
 face_encoder = FaceEncoder()
