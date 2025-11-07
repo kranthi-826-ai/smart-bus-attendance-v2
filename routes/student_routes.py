@@ -6,7 +6,6 @@ import os
 import base64
 from datetime import datetime
 import uuid
-
 import re
 import logging
 
@@ -36,7 +35,6 @@ def validate_roll_number(roll_no):
     return bool(re.match(r'^\d+$', str(roll_no)))
 
 # ===== END VALIDATION FUNCTIONS =====
-
 
 student_bp = Blueprint('student', __name__)
 db = Database()
@@ -102,14 +100,14 @@ def signup():
                 
                 # Extract face encoding using dlib
                 face_encoding = face_encoder.encode_face(temp_image_path)
-
                 
                 # Remove temp image
                 if os.path.exists(temp_image_path):
                     os.remove(temp_image_path)
                 
-                if not face_encoding:
-                    return jsonify({'success': False, 'message': message})
+                # FIX HERE: Check for None, not falsy value
+                if face_encoding is None:
+                    return jsonify({'success': False, 'message': 'No face found in the captured image. Please try again with a clearer face photo.'})
                 
             except Exception as e:
                 return jsonify({'success': False, 'message': f'Face processing error: {str(e)}'})
@@ -136,7 +134,7 @@ def signup():
     
     return render_template('student/signup.html')
 
-# Keep the rest of the routes the same (login, dashboard)
+# Keep the rest of the routes the same (login, dashboard, attendance)
 @student_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -172,10 +170,9 @@ def dashboard():
         return redirect(url_for('student.login'))
     
     return render_template('student/dashboard.html', 
-                         student_name=session.get('student_name'),
-                         university_id=session.get('student_id'),
-                         bus_number=session.get('bus_number'))
-
+                          student_name=session.get('student_name'),
+                          university_id=session.get('student_id'),
+                          bus_number=session.get('bus_number'))
 
 @student_bp.route('/attendance-status')
 def attendance_status():
