@@ -5,10 +5,11 @@ from routes.incharge_routes import incharge_bp
 from routes.attendance_routes import attendance_bp
 import os
 from datetime import timedelta
-from config import Config
+from config import config
 
+# Initialize Flask app
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config.from_object(config)
 
 # Initialize database
 db = Database()
