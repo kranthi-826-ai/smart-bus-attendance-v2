@@ -4,7 +4,7 @@ import sqlite3
 db_path = "database.db"
 
 # Replace with the student's university ID you want to delete
-university_id_to_delete = "2420030539"
+university_id_to_delete = "2420030349"
 
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
